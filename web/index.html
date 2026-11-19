@@ -1,0 +1,297 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DSE Curriculum Assistant</title>
+<!-- Khmer web fonts. Without internet the page falls back to the Khmer fonts installed on the computer. -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Kantumruy+Pro:wght@400;600&family=Noto+Sans+Khmer:wght@400;600&display=swap">
+<style>
+  :root {
+    --bg: #f5f6f8; --panel: #ffffff; --ink: #1c2330; --muted: #5f6b7d; --line: #dfe3ea;
+    --accent: #1f5fbf; --accent-ink: #ffffff; --accent-soft: #e6eefb;
+    --ok: #1d7a4c; --ok-soft: #e3f4ea; --warn: #9a5b00; --warn-soft: #fbf0d9;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #12161d; --panel: #1b212b; --ink: #e7ebf2; --muted: #9aa6b8; --line: #2c3442;
+      --accent: #6ea2ef; --accent-ink: #0d1626; --accent-soft: #1f2d45;
+      --ok: #6fd3a0; --ok-soft: #173326; --warn: #f0c070; --warn-soft: #3a2e14;
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font: 1rem/1.55 system-ui, "Segoe UI", "Kantumruy Pro", "Noto Sans Khmer", "Battambang", "Khmer OS Battambang", "Leelawadee UI", sans-serif;
+    display: flex; flex-direction: column;
+  }
+  /* Khmer sits lower and stacks vowels and subscript consonants (ស្រៈ និង ជើងព្យញ្ជនៈ), so it needs
+     larger type and more line height than English, or the stacked marks clip and overlap. Khmer mode
+     scales the whole page to 115% (every rem size grows with it); a Khmer fragment on an English page
+     (a question bubble, an example) gets .km. */
+  html:lang(km) { font-size: 115%; }
+  html:lang(km) body, .km {
+    font-family: "Kantumruy Pro", "Noto Sans Khmer", "Battambang", "Khmer OS Battambang", "Leelawadee UI", sans-serif;
+    line-height: 1.8;
+  }
+  html:lang(km) h1 { line-height: 1.6; }
+  .km { font-size: 1.15em; }
+  html:lang(km) .km { font-size: inherit; }
+  header { padding: 20px 16px 4px; }
+  header, main, form { width: 100%; max-width: 780px; margin: 0 auto; }
+  .brand { display: flex; align-items: center; gap: 12px; }
+  .logo {
+    width: 42px; height: 42px; border-radius: 10px; background: var(--accent); color: var(--accent-ink);
+    display: grid; place-items: center; font-weight: 700; letter-spacing: .5px; flex: none;
+  }
+  h1 { font-size: 1.25rem; margin: 0; line-height: 1.25; }
+  .lang {
+    margin-left: auto; flex: none; font: inherit; font-size: .85rem; color: var(--accent); background: var(--panel);
+    border: 1px solid var(--line); border-radius: 999px; padding: 6px 12px; cursor: pointer;
+  }
+  .lang:hover, .lang:focus-visible { border-color: var(--accent); outline: none; }
+  .picker p { margin: 0 0 10px; font-weight: 600; }
+  .tagline { margin: 2px 0 0; color: var(--muted); font-size: .92rem; }
+  main { flex: 1; padding: 12px 16px 8px; display: flex; flex-direction: column; gap: 12px; }
+  .intro { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 14px 16px; }
+  .intro p { margin: 0 0 10px; color: var(--muted); font-size: .95rem; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chip {
+    font: inherit; font-size: .9rem; color: var(--accent); background: var(--accent-soft);
+    border: 1px solid transparent; border-radius: 999px; padding: 6px 12px; cursor: pointer; text-align: left;
+  }
+  .chip:hover, .chip:focus-visible { border-color: var(--accent); outline: none; }
+  .msg { max-width: 100%; border-radius: 14px; padding: 12px 14px; overflow-wrap: anywhere; }
+  .user { align-self: flex-end; max-width: 85%; background: var(--accent); color: var(--accent-ink); border-bottom-right-radius: 4px; }
+  .bot { align-self: stretch; background: var(--panel); border: 1px solid var(--line); border-bottom-left-radius: 4px; }
+  .answer { white-space: pre-wrap; }
+  .answer a { color: var(--accent); }
+  .pill { display: inline-block; font-size: .75rem; font-weight: 600; border-radius: 999px; padding: 2px 10px; margin-bottom: 8px; }
+  .pill.ok { background: var(--ok-soft); color: var(--ok); }
+  .pill.none { background: var(--warn-soft); color: var(--warn); }
+  .foot { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--line); }
+  .meta { color: var(--muted); font-size: .78rem; flex: 1; min-width: 12ch; }
+  .rate { display: flex; align-items: center; gap: 4px; color: var(--muted); font-size: .82rem; }
+  .rate button { font: inherit; background: none; border: 1px solid var(--line); border-radius: 8px; padding: 2px 8px; cursor: pointer; }
+  .rate button:hover, .rate button:focus-visible { border-color: var(--accent); outline: none; }
+  .error { border-color: var(--warn); color: var(--warn); }
+  .dots::after { content: "…"; animation: blink 1.2s steps(3, end) infinite; }
+  @keyframes blink { 0% { opacity: .2; } 50% { opacity: 1; } 100% { opacity: .2; } }
+  @media (prefers-reduced-motion: reduce) { .dots::after { animation: none; } }
+  form {
+    position: sticky; bottom: 0; display: flex; flex-wrap: wrap; gap: 8px; padding: 12px 16px 16px;
+    background: linear-gradient(transparent, var(--bg) 22%);
+  }
+  .next { flex-basis: 100%; }                         /* suggested questions, right above the typing box */
+  .next:empty { display: none; }
+  input[type=text] {
+    flex: 1; min-width: 0; font: inherit; color: var(--ink); background: var(--panel);
+    border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px;
+  }
+  input[type=text]:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  button.send {
+    font: inherit; font-weight: 600; color: var(--accent-ink); background: var(--accent);
+    border: 0; border-radius: 12px; padding: 0 20px; cursor: pointer;
+  }
+  button.send:disabled { opacity: .55; cursor: default; }
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">
+    <div class="logo" aria-hidden="true">DSE</div>
+    <div>
+      <h1 id="title">DSE Curriculum Assistant</h1>
+      <p class="tagline" id="tagline">Answers come only from official RUPP sources, and every answer shows its source.</p>
+    </div>
+    <button type="button" class="lang" id="lang">Language / <span class="km">ភាសា</span></button>
+  </div>
+</header>
+
+<main id="log" aria-live="polite">
+  <section class="intro">
+    <p id="intro">Ask about courses, a year or semester, a program (DSE, ITE, AIE) or the department. Or try one of these:</p>
+    <div class="chips" id="chips"></div>
+  </section>
+</main>
+
+<form id="form" autocomplete="off">
+  <div class="chips next" id="next"></div>
+  <input type="text" id="question" maxlength="500" placeholder="Type your question…" aria-label="Your question" autofocus>
+  <button class="send" id="send" type="submit">Ask</button>
+</form>
+
+<script>
+  // Every word on the page, in both reply languages. The answers themselves come translated from
+  // the server (render() in src/answer.py), because the chosen language is sent with each question.
+  const ASK_LANGUAGE = 'Please select your preferred language / <span class="km">សូមជ្រើសរើសភាសាដែលអ្នកចង់បាន៖</span>';
+  const KHMER = /[ក-៿]/;
+  const TEXT = {
+    English: {
+      title: "DSE Curriculum Assistant",
+      tagline: "Answers come only from official RUPP sources, and every answer shows its source.",
+      intro: "Ask about courses, a year or semester, a program (DSE, ITE, AIE) or the department. Or try one of these:",
+      placeholder: "Type your question…", aria: "Your question", ask: "Ask",
+      thinking: "Looking through the official sources", helpful: "Helpful?",
+      yes: "Yes, helpful", no: "No, not helpful",
+      thanks: "Thanks for the feedback.", rateFail: "Could not save the feedback.",
+      offline: "The assistant is not reachable. Is web_app.py still running?",
+      labels: { record: "Exact curriculum record", llm: "Written from the sources",
+                extractive: "Quoted from the sources", abstain: "Not in the sources" },
+      examples: ["What do I study in year 1?", "DSE courses in year 3",
+                 "How many credits is Deep Learning and Application?", "Which majors does the department offer?",
+                 "Where is the department office?", "AIE courses in year 2 semester 1"]
+    },
+    Khmer: {
+      title: "ជំនួយការកម្មវិធីសិក្សា DSE",
+      tagline: "ចម្លើយមកពីប្រភពផ្លូវការរបស់ RUPP តែប៉ុណ្ណោះ ហើយចម្លើយនីមួយៗបង្ហាញប្រភពរបស់វា។",
+      intro: "សួរអំពីមុខវិជ្ជា ឆ្នាំ ឬឆមាស កម្មវិធីសិក្សា (DSE, ITE, AIE) ឬដេប៉ាតឺម៉ង់។ ឬសាកល្បងមួយក្នុងចំណោមទាំងនេះ៖",
+      placeholder: "វាយសំណួររបស់អ្នក…", aria: "សំណួររបស់អ្នក", ask: "សួរ",
+      thinking: "កំពុងស្វែងរកក្នុងប្រភពផ្លូវការ", helpful: "មានប្រយោជន៍ទេ?",
+      yes: "បាទ/ចាស មានប្រយោជន៍", no: "ទេ គ្មានប្រយោជន៍",
+      thanks: "អរគុណសម្រាប់មតិកែលម្អ។", rateFail: "មិនអាចរក្សាទុកមតិកែលម្អបានទេ។",
+      offline: "មិនអាចភ្ជាប់ទៅជំនួយការបានទេ។ តើ web_app.py នៅដំណើរការដែរឬទេ?",
+      labels: { record: "កំណត់ត្រាកម្មវិធីសិក្សាពិតប្រាកដ", llm: "សរសេរចេញពីប្រភព",
+                extractive: "ដកស្រង់ពីប្រភព", abstain: "មិនមាននៅក្នុងប្រភព" },
+      examples: ["មុខវិជ្ជាឆ្នាំទី១", "មុខវិជ្ជាឆ្នាំទី៣", "តើដេប៉ាតឺម៉ង់មានជំនាញអ្វីខ្លះ?",
+                 "តើអ៊ីមែលរបស់ដេប៉ាតឺម៉ង់គឺអ្វី?", "តើបណ្ណាល័យ ហ៊ុន សែន មានអ្វីខ្លះ?", "Deep Learning and Application"]
+    }
+  };
+  const KINDS = { record: "ok", llm: "ok", extractive: "ok", abstain: "none" };
+
+  const log = document.getElementById("log");
+  const form = document.getElementById("form");
+  const input = document.getElementById("question");
+  const send = document.getElementById("send");
+
+  // The choice is remembered in this browser only; if storage is blocked, the page simply asks again.
+  function loadLanguage() { try { const v = localStorage.getItem("language"); return v in TEXT ? v : null; } catch { return null; } }
+  function saveLanguage(v) { try { localStorage.setItem("language", v); } catch {} }
+  let language = loadLanguage();
+  let pending = null;                                  // a question asked before a language was chosen
+
+  function applyLanguage() {
+    const t = TEXT[language || "English"];
+    document.documentElement.lang = language === "Khmer" ? "km" : "en";
+    document.title = t.title;
+    document.getElementById("title").textContent = t.title;
+    document.getElementById("tagline").textContent = t.tagline;
+    document.getElementById("intro").textContent = t.intro;
+    input.placeholder = t.placeholder;
+    input.setAttribute("aria-label", t.aria);
+    send.textContent = t.ask;
+    fill(document.getElementById("chips"), t.examples);
+    fill(document.getElementById("next"), []);       // suggestions in the old language no longer fit
+  }
+
+  // Question buttons: the examples in the intro, and the 3 suggestions above the typing box.
+  function fill(container, questions) {
+    container.replaceChildren();
+    for (const question of questions || []) {
+      const chip = document.createElement("button");
+      chip.type = "button";
+      chip.className = "chip";
+      chip.textContent = question;
+      if (KHMER.test(question)) chip.classList.add("km");
+      chip.addEventListener("click", () => ask(question));
+      container.appendChild(chip);
+    }
+  }
+
+  function showPicker() {
+    if (document.getElementById("picker")) return;
+    const box = add("bot picker");
+    box.id = "picker";
+    box.innerHTML = `<p>${ASK_LANGUAGE}</p><div class="chips">
+      <button type="button" class="chip" data-language="English">1. English</button>
+      <button type="button" class="chip" data-language="Khmer">2. <span class="km">ភាសាខ្មែរ</span> (Khmer)</button></div>`;
+    box.querySelectorAll("button").forEach(button => button.addEventListener("click", () => {
+      language = button.dataset.language;
+      saveLanguage(language);
+      applyLanguage();
+      box.remove();
+      if (pending) { const question = pending; pending = null; ask(question); } else input.focus();
+    }));
+  }
+
+  function add(className, text) {
+    const el = document.createElement("div");
+    el.className = "msg " + className;
+    if (text) el.textContent = text;
+    if (text && KHMER.test(text)) el.classList.add("km");
+    log.appendChild(el);
+    el.scrollIntoView({ behavior: "smooth", block: "end" });
+    return el;
+  }
+
+  // The server escapes all text and only adds <b> and <i>, so its HTML is safe to insert.
+  // Web addresses become links; quotes are excluded so a link can never break out of its attribute.
+  function linkify(html) {
+    return html.replace(/https?:\/\/[^\s<"']+/g, url => `<a href="${url}" target="_blank" rel="noopener">${url}</a>`);
+  }
+
+  async function post(path, body) {
+    const response = await fetch(path, {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body)
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || "The assistant could not answer.");
+    return data;
+  }
+
+  function showAnswer(box, data) {
+    const cut = data.html.lastIndexOf("\n\n<i>route:");            // the last line is technical detail
+    const body = cut < 0 ? data.html : data.html.slice(0, cut);
+    const meta = cut < 0 ? "" : data.html.slice(cut + 2).replace(/<\/?i>/g, "");
+    const t = TEXT[language];
+    const label = t.labels[data.mode] || "", kind = KINDS[data.mode] || "ok";
+    box.classList.remove("dots");
+    box.innerHTML = `<span class="pill ${kind}">${label}</span><div class="answer">${linkify(body)}</div>
+      <div class="foot"><span class="meta">${meta}</span>
+      <span class="rate">${t.helpful} <button type="button" data-rating="1" aria-label="${t.yes}">👍</button>
+      <button type="button" data-rating="-1" aria-label="${t.no}">👎</button></span></div>`;
+    box.querySelectorAll(".rate button").forEach(button => button.addEventListener("click", async () => {
+      const rate = box.querySelector(".rate");
+      try {
+        await post("/api/rate", { query_id: data.query_id, rating: Number(button.dataset.rating) });
+        rate.textContent = t.thanks;
+      } catch { rate.textContent = t.rateFail; }
+    }));
+  }
+
+  async function ask(question) {
+    question = question.trim();
+    if (!question || send.disabled) return;
+    input.value = "";
+    if (!language) { pending = question; showPicker(); return; }   // ask for the language first
+    const t = TEXT[language];
+    add("user", question);
+    send.disabled = true;
+    const box = add("bot dots", t.thinking);
+    try {
+      const data = await post("/api/ask", { question, language });
+      showAnswer(box, data);
+      fill(document.getElementById("next"), data.suggestions);
+    } catch (error) {
+      box.className = "msg bot error";
+      box.textContent = error instanceof TypeError ? t.offline : error.message;
+    }
+    send.disabled = false;
+    box.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    input.focus();
+  }
+
+  applyLanguage();
+  form.addEventListener("submit", event => { event.preventDefault(); ask(input.value); });
+  document.getElementById("lang").addEventListener("click", showPicker);
+  if (!language) showPicker();                         // first visit: choose before the first answer
+
+  // A link such as http://127.0.0.1:8765/?q=DSE+courses+in+year+3 asks that question on arrival.
+  const linked = new URLSearchParams(location.search).get("q");
+  if (linked) ask(linked);
+</script>
+</body>
+</html>

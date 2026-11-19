@@ -1,0 +1,215 @@
+# DSE Curriculum Assistant (RAG)
+
+A retrieval-augmented assistant for students who have finished high school and are preparing for university.
+It answers questions about the **Data Science and Engineering (DSE)** program at RUPP and its sister
+programs (ITE, AIE) from registered official sources, and every answer shows where it came from.
+You can ask in the terminal, in a browser page, or through a Telegram bot.
+
+## Folders
+
+```text
+.venv/                  installed project Python + packages
+src/                    Python implementation
+  config.py             every setting in one place
+  ingest.py             validate -> load -> chunk -> embed -> index
+  hybrid.py             embeddings, the Qdrant collections, hybrid search
+  curriculum.py         exact course records (SQLite) and the rules that route a question
+  answer.py             the answer layer + the terminal chat
+  telegram_bot.py       Telegram bot
+  web_app.py            local server for the browser page
+  evaluate.py           evaluation on the golden set
+data/official/          curated web notes, the curriculum snapshot, a research-areas article (PDF),
+                        and their registry (sources.csv)
+data/practice/          learning PDF and slides, separate from the official sources
+index/                  generated: vector index, SQLite records + query log, reports, bot lock
+evaluation/             golden_set.csv (questions + expected sources) and the latest report
+tests/                  offline regression tests
+web/index.html          browser screen: HTML + CSS + JavaScript
+Doc/                    reference specifications and supplied PDFs
+requirements.txt        dependency list (exact versions)
+Start Telegram Bot.cmd  Windows launcher
+```
+
+## Setup (Windows PowerShell)
+
+Needs Python 3.15 and [Ollama](https://ollama.com). `--no-deps` is required; the reason is at the top of
+`requirements.txt`.
+
+```powershell
+python -m venv .venv
+.venv\Scripts\python.exe -m pip install --no-deps -r requirements.txt
+ollama pull bge-m3:567m          # embedding model, about 1.2 GB
+ollama pull gemma4:e4b           # answer model, about 6.6 GB
+.venv\Scripts\python.exe src\ingest.py
+```
+
+## Use it
+
+Ollama must be running. The terminal chat, the web page and the bot can run at the same time.
+
+```powershell
+.venv\Scripts\python.exe src\answer.py "What do I study in year 1?"   # one question
+.venv\Scripts\python.exe src\answer.py                                # terminal chat
+.venv\Scripts\python.exe src\answer.py --collection practice          # ask the learning material
+.venv\Scripts\python.exe src\answer.py --language Khmer "..."         # reply in Khmer (or English)
+.venv\Scripts\python.exe src\web_app.py                               # then open http://127.0.0.1:8765
+```
+
+Telegram: double-click **Start Telegram Bot.cmd** and paste your BotFather token at the hidden prompt
+(or put `TELEGRAM_BOT_TOKEN=...` in a `.env` file in this folder). To test without Telegram:
+`.venv\Scripts\python.exe src\telegram_bot.py --check`.
+
+**Reply language.** The bot and the web page first ask each student to choose: "Please select your
+preferred language / សូមជ្រើសរើសភាសាដែលអ្នកចង់បាន៖" (1. English, 2. ភាសាខ្មែរ). A question sent before the
+choice waits and is answered right after it. From then on every answer is in that language, whatever
+language the question is typed in, including the fixed words of course lists and refusals. Change it with
+`/language` in Telegram or the **Language / ភាសា** button on the page. The bot saves the choice in
+`index/kb.sqlite3` (table `user_language`, by hashed user id), so it survives a restart. The page keeps
+it in that browser. Without a choice (terminal, evaluation) the answer follows the question's language.
+
+Questions that work: `Deep Learning and Application` (a course), `DSE courses in year 3`,
+`AIE courses in year 2 semester 1`, `Which majors does the department offer?`. A course or year question
+that names no program (`មុខវិជ្ជាឆ្នាំទី១`, `Project Practicum`) is answered for **ITE and DSE in separate
+sections**, never merged, with a note on how to ask for AIE or for one program only.
+
+**Suggested questions.** After every answer, 3 follow-up questions appear as buttons: in Telegram under the
+typing box (with a **🌐 Language / ភាសា** button), on the web page right above it. Tapping one asks it. They
+are chosen by code (`suggest()` in `src/answer.py`), not written by Gemma, so every button leads to a real
+answer: all 36 possible suggestions were checked. With no program known they cover both majors; after a
+program they go deeper into it, plus one comparison. The question just asked is never repeated.
+
+**After changing any code, restart the bot and the web page.** They load the code once, when they start.
+
+On the web page, Khmer text is set 15% larger with line height 1.8 (Kantumruy Pro / Noto Sans Khmer /
+Battambang), so stacked vowels and subscript consonants do not clip. Without internet the page uses the
+Khmer fonts installed on the computer.
+
+## Change the data
+
+| To add | Do this |
+| :--- | :--- |
+| An official source | Put the file in `data/official/`, add a row to `data/official/sources.csv` with `status=official`, run `src\ingest.py` |
+| Learning material | Put the file in `data/practice/`, run `src\ingest.py` (no registry row needed) |
+| Remove a source | Delete the file and its row in `sources.csv` (and its questions in `golden_set.csv`), run `src\ingest.py` |
+
+`python src\ingest.py --check` validates the registry without changing anything. A file with no registry
+row, or with any status other than `official`, is reported and not indexed. Restart a running chat, web
+page or bot after re-ingesting so it loads the new index.
+
+| `doc_type` | File | What is read |
+| :--- | :--- | :--- |
+| `curriculum` | `.json` with `programs[].courses[]` | Exact course records, plus program overviews and contacts |
+| `web` | `.json` with `title`, `url`, `passages[]` | Each passage |
+| `handbook`, `guide`, `faq` | `.pdf`, `.docx`, `.md`, `.txt` | Pages or heading sections |
+| `slides` | `.pptx` | Slides |
+
+## How an answer is made
+
+```text
+question -> route (rules)
+              |- course title         -> exact record from SQLite
+              |- "courses in year N"  -> exact list from SQLite
+              `- anything else        -> (Khmer: Gemma translates it to English for the search)
+                                         -> hybrid search (bge-m3 dense + keyword sparse, RRF) in Qdrant
+                                         -> relevance gate -> Gemma writes from the passages
+                                         -> citation check -> answer, or an honest refusal
+```
+
+- **Exact facts come from records, not from the model.** Course name, year, semester, credits and hours
+  are read from the curriculum snapshot.
+- **Two checks before a general answer.** A passage is used only if its own similarity to the question
+  reaches `ABSTAIN_THRESHOLD`; then Gemma must answer only from those passages and say so when they do not
+  answer. `--extractive` (or `ENABLE_LLM=false`) skips Gemma and quotes the passages instead.
+- **Khmer questions are searched in English.** The sources are English, and bge-m3 scores Khmer
+  against English text too low to pass the gate. Gemma translates the question (with a small glossary,
+  `GLOSSARY` in `src/answer.py`), the English text is searched, and Gemma answers the original Khmer
+  question in Khmer. The query log records the English text that was searched. Without Gemma the Khmer
+  text is searched as it is.
+- **The reply language is decided in code, not guessed by Gemma.** `reply_language()` picks the
+  student's choice, else the question's language. Gemma is told it in its rules and again after the
+  question: with the rule alone, 3 of 8 English questions came back in English or were refused when
+  Khmer was chosen. For an English reply to a Khmer question, Gemma answers the English translation.
+  The fixed words of an answer (course lists, refusals) come from `TEXT` in `src/answer.py`.
+- **One entry point.** The terminal, the web page, the bot and the evaluator all call `answer()` in
+  `src/answer.py`, so the evaluation measures what users get.
+- **Programs are never mixed.** With no program named, course records come back in one section per
+  program (`DEFAULT_PROGRAMS`, ITE and DSE). A comparison ("DSE vs ITE") runs one search per program, so
+  both are represented: a single search found DSE passages only, because every chunk names the
+  Department of *Information Technology Engineering*. Gemma's rule 7 says to answer per program.
+- **Khmer style.** Gemma is asked for polite, formal Khmer (និស្សិត, not សិស្ស), technical terms in
+  English, short bullets and **bold** (shown as real bold). The code then enforces RUPP's terms in Khmer
+  answers (ឆ្នាំទី៣ ឆមាសទី១ with Khmer numerals, not "សេមីស្ទ័រ" or "year 3"). A Khmer answer with a Thai or
+  Burmese word gets one repair call, else the sources are quoted instead.
+- **The advisor prompt's few-shot examples are not given to Gemma.** Several of their facts are not in
+  the official sources, and some contradict them (ITE year 1 has no Discrete Mathematics or Computer
+  Architecture). Only their behaviour is built in: separate programs, Khmer tone, Khmer typography.
+- **LangChain** provides the loader and `Document` interface, the text splitter, the Qdrant vector store
+  and the retriever interface.
+
+## Check it
+
+```powershell
+.venv\Scripts\python.exe -m unittest discover -s tests        # offline tests
+.venv\Scripts\python.exe src\evaluate.py --llm                # results as users see them
+.venv\Scripts\python.exe src\evaluate.py --sweep              # threshold table (retrieval only)
+```
+
+Each row of `evaluation/golden_set.csv` has the expected sources (`expected_ids`), a reference answer
+written by hand from the sources (`expected_answer`), and the key facts the real answer must contain
+(`must_contain`: `|` = all required, `/` = accepted spellings). The evaluator prints `WRONG ANSWER`
+when a fact is missing.
+
+Results on 2026-11-17 (53 questions, Gemma on, threshold 0.49):
+
+| Slice | Questions | Right source | Key facts correct |
+| :--- | ---: | :--- | :--- |
+| Course lookups (incl. a title both ITE and DSE have) | 8 | 8 | 8 |
+| Year / semester lists (incl. `មុខវិជ្ជាឆ្នាំទី១` with no program) | 8 | 8 | 8 |
+| General questions (English, incl. 4 on the research article, DSE vs ITE) | 17 | 17 | 17 |
+| General questions (Khmer, incl. DSE vs ITE) | 7 | 7 | 7 |
+| Off-topic | 6 | 6 refused | |
+| In-domain but not in the sources (incl. 2 that tempt "RUPP researches X") | 7 | 7 refused | |
+
+The evaluator does not choose a reply language, so it measures English-to-English and Khmer-to-Khmer.
+Cross-language answers (English question, Khmer chosen, and the reverse) were checked by hand on 11
+questions; all came back in the chosen language with the right facts.
+
+Known weaknesses:
+
+- **One source is not from RUPP**: `dse-research-areas.pdf` is a Springer Nature blog post (2023) about
+  data science research in general. Its registry title says so, so every citation shows "not a RUPP
+  document", and questions h06 / h07 check that it is never presented as RUPP's own research.
+- **PDF section labels are per page**: a passage is labelled with its page's largest heading, so a
+  Responsible AI passage on p.3 shows "8. Genetic Studies". The page number is right.
+- **Gemma's Khmer counts are not checked automatically**: earlier versions called the three majors
+  "four" (`មានជំនាញបួន`). The current prompt says "បី" (three), but k01 now checks only the three names,
+  so read the count by eye.
+- **Gemma is sensitive to prompt wording**: each new rule moved a few answers (one made it answer a
+  research question with the curriculum). Re-run `src\evaluate.py --llm` after any change to `RULES`.
+
+- **Khmer answer wording**: Gemma's Khmer is understandable but not always natural (one answer wrote
+  "អាល់ហ្គorithms", half Khmer and half English), and it sometimes types a Thai or Burmese lookalike
+  letter. Known slips are repaired (`LOOKALIKES` in `src/answer.py`). A Khmer question costs one extra
+  Gemma call (about 1-2 s).
+- **The fixed Khmer texts need a native review**: they were written without a Khmer speaker. They are in
+  `TEXT` (`src/answer.py`), `HELP` / `CHOSEN` / `THANKS` (`src/telegram_bot.py`) and `TEXT` (`web/index.html`).
+- **Without Gemma, answers are not translated**: with `--extractive` the passages are quoted in English,
+  even when Khmer was chosen; only the fixed words switch language.
+- **Without Gemma the gate alone is weak**: 4 of the 5 in-domain unanswerable questions get loosely
+  related passages instead of a refusal, and Khmer questions are mostly refused.
+- The sources say nothing about fees, deadlines, scholarships or admission requirements, so those
+  questions are refused.
+- The test set is small and was written by the developer; the Khmer questions need a native review.
+
+## Notes
+
+- **Windows Smart App Control** is on for the development laptop. It blocks unsigned compiled files,
+  including PyTorch, so the models run in Ollama and some packages are pinned to older builds that it
+  accepts. Its verdicts can change from day to day. If a run fails with "An Application Control policy
+  has blocked this file", the traceback names the package: install an older release of it and update
+  `requirements.txt`.
+- Settings can be overridden with environment variables or a `.env` file: `TELEGRAM_BOT_TOKEN`,
+  `ENABLE_LLM`, `ABSTAIN_THRESHOLD`, `DEFAULT_PROGRAMS` (default `ITE,DSE`), `OLLAMA_MODEL`, `EMBED_MODEL`,
+  `WEB_PORT`.
+- Records marked `review_needed` in the curriculum snapshot are shown with "(record needs review)".
+- Scanned PDFs need OCR: install `pytesseract`, `pillow` and the Tesseract program with `eng` + `khm` data.
