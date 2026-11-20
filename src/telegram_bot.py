@@ -26,6 +26,7 @@ import asyncio
 import getpass
 import hashlib
 import time
+from html import escape
 
 import portalocker
 import telegram
@@ -40,23 +41,12 @@ from answer import KB, LANGUAGES, TELEGRAM_LIMIT, answer, paginate, render, rend
 ASK_LANGUAGE = "Please select your preferred language / សូមជ្រើសរើសភាសាដែលអ្នកចង់បាន៖"
 PICKER = InlineKeyboardMarkup([[InlineKeyboardButton("English", callback_data="lang:English"),
                                 InlineKeyboardButton("ភាសាខ្មែរ (Khmer)", callback_data="lang:Khmer")]])
-HELP = {
-    "English": ("Hi! I answer questions about the <b>Data Science and Engineering (DSE)</b> program "
+HELP = {   # the welcome; {name} = " " + the user's Telegram first name (shown only, never stored)
+    "English": ("Hi{name}! I answer questions about the <b>Data Science and Engineering (DSE)</b> program "
                 "using official sources only.\n\n"
-                "Try:\n"
-                "• <code>What do I study in year 1?</code>\n"
-                "• <code>/course Deep Learning and Application</code>\n"
-                "• <code>/year 3</code>\n"
-                "• <code>What jobs can DSE graduates do?</code>\n"
-                "• <code>What are the DSE research areas?</code>\n\n"
                 "Tap 📚 Resource under an answer to see its sources. Change the language: /language"),
-    "Khmer": ("សួស្តី! ខ្ញុំឆ្លើយសំណួរអំពីកម្មវិធីសិក្សា <b>Data Science and Engineering (DSE)</b> "
+    "Khmer": ("សួស្តី{name}! ខ្ញុំឆ្លើយសំណួរអំពីកម្មវិធីសិក្សា <b>Data Science and Engineering (DSE)</b> "
               "ដោយប្រើតែប្រភពផ្លូវការប៉ុណ្ណោះ។\n\n"
-              "សាកល្បង៖\n"
-              "• <code>មុខវិជ្ជាឆ្នាំទី១</code>\n"
-              "• <code>/course Deep Learning and Application</code>\n"
-              "• <code>/year 3</code>\n"
-              "• <code>តើបញ្ចប់ DSE អាចធ្វើការអ្វីបាន?</code>\n\n"
               "ចុច 📚 ប្រភព នៅក្រោមចម្លើយ ដើម្បីមើលប្រភពរបស់វា។ ប្តូរភាសា៖ /language"),
 }
 CHOSEN = {"English": "Language: English", "Khmer": "ភាសា៖ ខ្មែរ"}
@@ -111,12 +101,14 @@ async def _reply(update: Update, ctx: ContextTypes.DEFAULT_TYPE, query: str) -> 
             ctx.user_data["pending"] = query
         return await _ask_language(update.effective_chat)
     if not query.strip():
-        return await _help(update.effective_chat, language)
+        return await _help(update.effective_chat, language, update.effective_user.first_name)
     await _answer(update.effective_chat, ctx, query, user, language)
 
 
-async def _help(chat, language: str) -> None:
-    await chat.send_message(HELP[language], parse_mode=ParseMode.HTML, reply_markup=_keyboard(suggest(language)))
+async def _help(chat, language: str, name: str | None = None) -> None:
+    """The welcome, greeting the user by their Telegram first name; questions to tap are in the keyboard."""
+    text = HELP[language].format(name=f" {escape(name, quote=False)}" if name else "")
+    await chat.send_message(text, parse_mode=ParseMode.HTML, reply_markup=_keyboard(suggest(language)))
 
 
 async def _answer(chat, ctx: ContextTypes.DEFAULT_TYPE, query: str, user: str, language: str) -> None:
@@ -175,7 +167,7 @@ async def on_language_chosen(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> 
     if pending:                                        # the question that was waiting for the choice
         await _answer(update.effective_chat, ctx, pending, user, language)
     else:
-        await _help(update.effective_chat, language)
+        await _help(update.effective_chat, language, update.effective_user.first_name)
 
 
 async def on_rating(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:

@@ -1,8 +1,8 @@
 # DSE Curriculum Assistant (RAG)
 
 A retrieval-augmented assistant for students who have finished high school and are preparing for university.
-It answers questions about the **Data Science and Engineering (DSE)** program at RUPP and its sister
-programs (ITE, AIE) from registered official sources, and every answer shows where it came from.
+It answers questions about the **Data Science and Engineering (DSE)** program at RUPP, and only DSE,
+from registered sources; the sources of every answer open under a **📚 Resource** button.
 You can ask in the terminal, in a browser page, or through a Telegram bot.
 
 ## Folders
@@ -71,13 +71,15 @@ it in that browser. Without a choice (terminal, evaluation) the answer follows t
 `RUPP_resource.pdf` (51 DSE course records, research areas, job prospects, the GPA grading scale), and
 the Springer research-areas article. Page 1 of the PDF is left out: it is Environmental Engineering text
 that RUPP's DSE page shows by mistake. The ITE/AIE course records, department contacts, library and
-foundation-year notes were deleted on purpose; questions about them are refused, and a question that
-names ITE or AIE is never answered with DSE records.
+foundation-year notes were deleted on purpose. **Since 2026-11-20 the assistant covers DSE only**: a
+question that names another program (ITE, AIE - `REFUSED_PROGRAMS` in `src/config.py`) gets "I can only
+answer questions about the Data Science and Engineering (DSE) program", never DSE's records. Those names
+are kept only so such questions are recognized and refused.
 
 Questions that work: `Deep Learning and Application` (a course), `DSE courses in year 3`,
 `What jobs can DSE graduates do?`, `What are the DSE research areas?`, `What GPA is a grade of A?`,
-`តើ DSE ជាអ្វី?`. If records for more programs are added again, a course or year question that names no
-program (`មុខវិជ្ជាឆ្នាំទី១`) is answered for **ITE and DSE in separate sections**, never merged.
+`តើ DSE ជាអ្វី?`, `How can I apply to DSE at RUPP after Grade 12?`. A course or year question that names
+no program (`មុខវិជ្ជាឆ្នាំទី១`) is answered for DSE.
 
 **Suggested questions.** After every answer, 3 follow-up questions appear as buttons: in Telegram under the
 typing box (with a **🌐 Language / ភាសា** button), on the web page right above it. Tapping one asks it. They
@@ -139,17 +141,16 @@ question -> route (rules)
   The fixed words of an answer (course lists, refusals) come from `TEXT` in `src/answer.py`.
 - **One entry point.** The terminal, the web page, the bot and the evaluator all call `answer()` in
   `src/answer.py`, so the evaluation measures what users get.
-- **Programs are never mixed.** With no program named, course records come back in one section per
-  program (`DEFAULT_PROGRAMS`, ITE and DSE). A comparison ("DSE vs ITE") runs one search per program, so
-  both are represented: a single search found DSE passages only, because every chunk names the
-  Department of *Information Technology Engineering*. Gemma's rule 7 says to answer per program.
+- **DSE only.** A question naming another program, or comparing DSE with one ("DSE vs ITE"), is refused
+  in code before any search, so it can never be answered with DSE's courses. A question naming DSE also
+  searches for the DSE overview ("what is DSE?" alone embeds poorly).
 - **Khmer style.** Gemma is asked for polite, formal Khmer (និស្សិត, not សិស្ស), technical terms in
   English, short bullets and **bold** (shown as real bold). The code then enforces RUPP's terms in Khmer
   answers (ឆ្នាំទី៣ ឆមាសទី១ with Khmer numerals, not "សេមីស្ទ័រ" or "year 3"). A Khmer answer with a Thai or
   Burmese word gets one repair call, else the sources are quoted instead.
 - **The advisor prompt's few-shot examples are not given to Gemma.** Several of their facts are not in
-  the official sources, and some contradict them (ITE year 1 has no Discrete Mathematics or Computer
-  Architecture). Only their behaviour is built in: separate programs, Khmer tone, Khmer typography.
+  the official sources, and some contradict them. Only their behaviour is built in: Khmer tone and
+  Khmer typography.
 - **LangChain** provides the loader and `Document` interface, the text splitter, the Qdrant vector store
   and the retriever interface.
 
@@ -166,16 +167,18 @@ written by hand from the sources (`expected_answer`), and the key facts the real
 (`must_contain`: `|` = all required, `/` = accepted spellings). The evaluator prints `WRONG ANSWER`
 when a fact is missing.
 
-Results on 2026-11-19 after the DSE-only data (65 questions, Gemma on, threshold 0.49):
+Results on 2026-11-20, DSE only (59 questions, Gemma on, threshold 0.49):
 
 | Slice | Questions | Right source | Key facts correct |
 | :--- | ---: | :--- | :--- |
-| Course lookups (DSE) | 7 | 7 | 7 |
-| Year / semester lists (DSE) | 6 | 6 | 6 |
-| General questions (English: jobs, research areas, GPA, evaluation, "what is DSE?", the article) | 13 | 13 | 13 |
-| General questions (Khmer) | 7 | 7 | 7 |
+| Course lookups | 7 | 7 | 7 |
+| Year / semester lists | 7 | 7 | 7 |
+| General questions (English: jobs, research areas, GPA, evaluation, "what is DSE?", how to apply, the article) | 15 | 15 | 15 |
+| General questions (Khmer) | 9 | 9 | 9 |
 | Off-topic | 6 | 6 refused | |
-| Not in the sources (incl. 19 about the deleted ITE/AIE/contact/library data, and 2 from page 1) | 26 | 26 refused | |
+| Not in the sources (fees, deadlines, scholarships, contacts, library, salaries, ...) | 15 | 15 refused | |
+
+Questions about other programs (ITE, AIE) are refused in code before any search; a unit test checks it.
 
 The evaluator does not choose a reply language, so it measures English-to-English and Khmer-to-Khmer.
 Cross-language answers (English question, Khmer chosen, and the reverse) were checked by hand on 11
@@ -216,7 +219,6 @@ Known weaknesses:
   has blocked this file", the traceback names the package: install an older release of it and update
   `requirements.txt`.
 - Settings can be overridden with environment variables or a `.env` file: `TELEGRAM_BOT_TOKEN`,
-  `ENABLE_LLM`, `ABSTAIN_THRESHOLD`, `DEFAULT_PROGRAMS` (default `ITE,DSE`), `OLLAMA_MODEL`, `EMBED_MODEL`,
-  `WEB_PORT`.
+  `ENABLE_LLM`, `ABSTAIN_THRESHOLD`, `OLLAMA_MODEL`, `EMBED_MODEL`, `WEB_PORT`.
 - Records marked `review_needed` in the curriculum snapshot are shown with "(record needs review)".
 - Scanned PDFs need OCR: install `pytesseract`, `pillow` and the Tesseract program with `eng` + `khm` data.

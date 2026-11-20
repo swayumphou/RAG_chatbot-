@@ -48,9 +48,10 @@ class KB:
         self.searcher = Searcher(collection)
         self.db = DB()
         self.lock = threading.Lock()                  # one query at a time through the models
-        # `programs`: every department program, so "ITE courses" is recognized even without ITE records
-        # (and refused, not answered with another program's). `names`, `titles`: programs with records.
-        self.programs = ({pid: normalize(name) for pid, name in config.PROGRAM_NAMES.items()}
+        # `programs`: DSE plus the refused programs, so "ITE courses" is recognized (and refused, not
+        # answered with DSE's courses). `names`, `titles`: the program with records (DSE).
+        recognized = {**config.PROGRAM_NAMES, **config.REFUSED_PROGRAMS}
+        self.programs = ({pid: normalize(name) for pid, name in recognized.items()}
                          if collection == "official" else {})
         self.names, self.titles = {}, {}
         if collection == "official" and self.db.has_courses():
@@ -75,16 +76,17 @@ def answer(query: str, kb: KB, surface: str = "cli", user_hash: str | None = Non
     with kb.lock:
         routed = route(query, kb.programs, kb.titles)
         named = routed["compared"] or [p for p in [routed["program"]] if p]
-        if named and kb.programs and not any(p in kb.names for p in named):   # e.g. ITE, with no ITE data
+        refused = [p for p in named if p in config.REFUSED_PROGRAMS]
+        if refused and kb.programs:                   # e.g. ITE, or "DSE vs ITE": this assistant is DSE only
+            result = _result("QUESTION", "abstain", note=f"not DSE: {', '.join(refused)}")
+        elif named and kb.programs and not any(p in kb.names for p in named):   # DSE named, no DSE records
             result = _result("QUESTION", "abstain", note=f"no records for {', '.join(named)}")
         else:
             result = ((_records(routed, kb, language) if kb.names else None)
                       or _grounded(query, kb, threshold, language, [p for p in named if p in kb.names]))
-        sections = result["sections"]
-        program = routed["program"] or (sections[0]["program"] if len(sections) == 1 else None)
         result.update(query_id=uuid.uuid4().hex, collection=kb.collection, language=language,
-                      suggestions=suggest(language, program, routed["year"], query, tuple(kb.names))
-                      if kb.collection == "official" else [])
+                      suggestions=suggest(language, routed["year"], query)
+                      if kb.collection == "official" and kb.names else [])
         if surface != "eval" and kb.collection == "official":     # the log is training data: official only
             retrieved = [{"id": p["course_id"] or p["source_id"], "anchor": p["anchor"], "rank": p["n"],
                           "score": p["score"]} for p in result["passages"]] \
@@ -100,37 +102,22 @@ def answer(query: str, kb: KB, surface: str = "cli", user_hash: str | None = Non
 
 
 SUGGEST = {   # follow-up question forms the assistant answers (each form has a golden-set question)
-    "English": {"courses": "{p} courses in year {y}", "teach": "What does the {p} program teach?",
-                "compare": "What is the difference between {a} and {b}?",
+    "English": {"courses": "DSE courses in year {y}", "teach": "What does the DSE program teach?",
+                "apply": "How can I apply to DSE at RUPP after Grade 12?",
                 "jobs": "What jobs can DSE graduates do?", "research": "What are the DSE research areas?"},
-    "Khmer": {"courses": "មុខវិជ្ជា {p} ឆ្នាំទី{y}", "teach": "តើជំនាញ {p} រៀនអ្វីខ្លះ?",
-              "compare": "តើ {a} និង {b} ខុសគ្នាដូចម្តេច?",
+    "Khmer": {"courses": "មុខវិជ្ជា DSE ឆ្នាំទី{y}", "teach": "តើជំនាញ DSE រៀនអ្វីខ្លះ?",
+              "apply": "តើដាក់ពាក្យចូលរៀន DSE យ៉ាងដូចម្តេច?",
               "jobs": "តើបញ្ចប់ DSE អាចធ្វើការអ្វីបាន?", "research": "តើ DSE មានវិស័យស្រាវជ្រាវអ្វីខ្លះ?"},
 }
 
 
-def suggest(language: str, program: str | None = None, year: int | None = None, asked: str = "",
-            available: tuple = ("DSE", "ITE", "AIE")) -> list[str]:
+def suggest(language: str, year: int | None = None, asked: str = "") -> list[str]:
     """3 follow-up questions for the buttons next to the typing box (Telegram keyboard, web page bar).
-    Chosen by code, never written by Gemma, so every button leads to a real answer. Only programs with
-    records (`available`) are offered. No program known: DSE and ITE. After a program: that program
-    again (the next year), its overview, and a comparison. Jobs and research areas exist for DSE only
-    (passages in rupp-dse-degree.json)."""
+    Chosen by code, never written by Gemma, so every button leads to a real answer. After a year
+    question the next year comes first; the question just asked is never offered again."""
     s = SUGGEST[language]
-    courses = lambda p, y: s["courses"].format(p=p, y=_num(y, language))   # noqa: E731
-    known = [p for p in ("DSE", "ITE", "AIE") if p in available]
-    if not known:
-        return []
-    if program in known:
-        other = next((p for p in known if p != program), None)
-        options = [courses(program, year % 4 + 1 if year else 1), s["teach"].format(p=program)]
-        options += [s["compare"].format(a=program, b=other)] if other else []
-    else:
-        main = known[:2]
-        options = [courses(p, year or 1) for p in main]
-        options += [s["compare"].format(a=main[0], b=main[1])] if len(main) > 1 else [s["teach"].format(p=main[0])]
-    options += [s["jobs"], s["research"]] if "DSE" in known else []
-    options += [courses(program or known[0], 2)]
+    courses = lambda y: s["courses"].format(y=_num(y, language))   # noqa: E731
+    options = [courses(year % 4 + 1 if year else 1), s["teach"], s["apply"], s["jobs"], s["research"], courses(2)]
     return [q for q in dict.fromkeys(options) if normalize(q) != normalize(asked)][:3]
 
 
@@ -140,8 +127,7 @@ def _result(route_name: str, mode: str, **extra) -> dict:
 
 
 def _records(routed: dict, kb: KB, language: str) -> dict | None:
-    """Exact records, one section per program: two (ITE, DSE) when the question names no program,
-    so two programs' courses are never presented as one curriculum."""
+    """Exact DSE course records from SQLite (one section)."""
     if routed["intent"] == "QUESTION":
         return None
     t, year, semester = TEXT[language], routed["year"], routed["semester"]
@@ -171,7 +157,7 @@ PROGRAM_QUERY = "What does the {name} ({id}) bachelor program teach?"   # finds 
 
 
 def _grounded(query: str, kb: KB, threshold: float, language: str, programs: list[str] = ()) -> dict:
-    """`programs`: the programs the question names ("what is DSE?", "DSE vs ITE")."""
+    """`programs`: the program the question names ("what is DSE?")."""
     searched = query
     if kb.enable_llm and contains_khmer(query):       # the sources are English: search in English
         try:
@@ -180,9 +166,8 @@ def _grounded(query: str, kb: KB, threshold: float, language: str, programs: lis
             pass
     if programs and kb.names:
         # A bare abbreviation embeds poorly: "what is DSE?" found one course passage (score 0.49), not
-        # the DSE overview; "DSE vs ITE" found DSE passages only (every chunk names the Department of
-        # Information Technology Engineering). So: one neutral search per named program, plus the
-        # question itself, results taken in turns, so every named program's overview is offered.
+        # the DSE overview. So: one neutral search for the program's overview, plus the question
+        # itself, results taken in turns, so the overview is always offered.
         runs = [sorted(kb.searcher.candidates(PROGRAM_QUERY.format(name=config.PROGRAM_NAMES.get(p, kb.names[p]),
                                                                    id=p)),                   # by meaning:
                        key=lambda d: d.metadata["cosine"], reverse=True) for p in programs]    # overview first
@@ -222,7 +207,7 @@ NO_ANSWER = "The official sources I have do not answer this question."
 
 AUDIENCE = {
     "official": "You help high-school graduates understand the Data Science and Engineering (DSE)\n"
-                "program and its sister programs at RUPP.",
+                "program at RUPP.",
     "practice": "You help a student study the learning material they were given.",
 }
 RULES = f"""Answer ONLY from the numbered passages inside <sources>.
@@ -238,13 +223,9 @@ Rules:
    points for lists and **bold** for key terms.
 6. When you reply in Khmer: write natural, polite, formal Khmer for university students (say និស្សិត,
    not សិស្ស). Keep technical terms and course names in English, for example Python, Calculus,
-   Data Structures. Name the programs វិស្វកម្មវិទ្យាសាស្ត្រទិន្នន័យ (DSE), វិស្វកម្មបច្ចេកវិទ្យាព័ត៌មាន (ITE)
-   and វិស្វកម្មបញ្ញាសិប្បនិម្មិត (AIE). Use these terms: year 1 = ឆ្នាំទី១, semester 2 = ឆមាសទី២ (never
-   សេមីស្ទ័រ), credit = ក្រេឌីត, core course = មុខវិជ្ជាគោល, elective course = មុខវិជ្ជាជ្រើសរើស.
-   Use Khmer letters only, never Thai or Burmese letters or punctuation.
-7. ITE, DSE and AIE are three different programs. Never present one program's courses or facts as
-   another's. If the question names no program and the passages differ by program, answer for each
-   program separately and name it."""
+   Data Structures. Name the program វិស្វកម្មវិទ្យាសាស្ត្រទិន្នន័យ (DSE). Use these terms: year 1 = ឆ្នាំទី១,
+   semester 2 = ឆមាសទី២ (never សេមីស្ទ័រ), credit = ក្រេឌីត, core course = មុខវិជ្ជាគោល,
+   elective course = មុខវិជ្ជាជ្រើសរើស. Use Khmer letters only, never Thai or Burmese letters or punctuation."""
 
 CITE_RE = re.compile(r"\[(\d+(?:\s*,\s*\d+)*)\]")      # [1] and [2, 3]
 
@@ -322,32 +303,28 @@ def citations_valid(text: str, n_passages: int) -> bool:
 
 # --- 3. rendering: result -> text (plain for the terminal, HTML for Telegram and the web page) -
 
-TEXT = {    # the fixed words of an answer in each reply language (Gemma's own text follows RULES 5-7)
+TEXT = {    # the fixed words of an answer in each reply language (Gemma's own text follows RULES 5-6)
     "English": {
         "abstain": "I could not find this in the sources I have.",
-        "hint": " Try asking about a course, the courses in a year or semester, or what a program teaches.",
+        "only": "I can only answer questions about the Data Science and Engineering (DSE) program.",
+        "hint": " Try asking about a DSE course, the courses in a year or semester, or what DSE teaches.",
         "closest": "Closest sources (low confidence):", "sources": "Sources",
         "term": "Year {y}, semester {s}", "year": " · year {y}", "semester": " · semester {s}",
         "credit": "{c} credit", "credits": "{c} credits", "hours": ", hours {h}", "option": "Option {n}",
         "review": " (record needs review)", "note": "Note: {n}", "total": "Total: {n} courses, {c} credits",
         "source": "Source: {title} · {url} · retrieved {date}", "retrieved": "retrieved {date}",
-        "both": "You did not name a program, so here are {programs} separately:", "and": " and ",
-        "other": "To see one program only, or AIE, name it in the question, e.g. “AIE courses in year 1”.",
         "programs": {}},                              # English program names come from the records
     "Khmer": {
         "abstain": "ខ្ញុំរកមិនឃើញព័ត៌មាននេះនៅក្នុងប្រភពដែលខ្ញុំមានទេ។",
-        "hint": " សូមសួរអំពីមុខវិជ្ជាណាមួយ មុខវិជ្ជាក្នុងឆ្នាំ ឬឆមាសណាមួយ ឬអ្វីដែលជំនាញមួយបង្រៀន។",
+        "only": "ខ្ញុំអាចឆ្លើយបានតែសំណួរអំពីជំនាញវិស្វកម្មវិទ្យាសាស្ត្រទិន្នន័យ (DSE) ប៉ុណ្ណោះ។",
+        "hint": " សូមសួរអំពីមុខវិជ្ជា DSE ណាមួយ មុខវិជ្ជាក្នុងឆ្នាំ ឬឆមាសណាមួយ ឬអ្វីដែលជំនាញ DSE បង្រៀន។",
         "closest": "ប្រភពដែលជិតបំផុត (ទំនុកចិត្តទាប)៖", "sources": "ប្រភព",
         "term": "ឆ្នាំទី{y} ឆមាសទី{s}", "year": " · ឆ្នាំទី{y}", "semester": " · ឆមាសទី{s}",
         "credit": "{c} ក្រេឌីត", "credits": "{c} ក្រេឌីត", "hours": ", ម៉ោង {h}", "option": "មុខវិជ្ជាជ្រើសរើស {n}",
         "review": " (កំណត់ត្រានេះត្រូវពិនិត្យឡើងវិញ)", "note": "កំណត់សម្គាល់៖ {n}",
         "total": "សរុប៖ មុខវិជ្ជា {n} · {c} ក្រេឌីត", "source": "ប្រភព៖ {title} · {url} · ទាញយកថ្ងៃទី {date}",
         "retrieved": "ទាញយកថ្ងៃទី {date}",
-        "both": "ដោយសារអ្នកមិនបានបញ្ជាក់ជំនាញ ខាងក្រោមនេះជាមុខវិជ្ជាសម្រាប់ជំនាញ {programs} ដាច់ដោយឡែកពីគ្នា៖",
-        "and": " និង ",
-        "other": "សម្រាប់ជំនាញ AIE ឬដើម្បីមើលតែជំនាញមួយ សូមបញ្ជាក់ឈ្មោះជំនាញនៅក្នុងសំណួរ ឧទាហរណ៍ «មុខវិជ្ជា AIE ឆ្នាំទី១»។",
-        "programs": {"DSE": "វិស្វកម្មវិទ្យាសាស្ត្រទិន្នន័យ", "ITE": "វិស្វកម្មបច្ចេកវិទ្យាព័ត៌មាន",
-                     "AIE": "វិស្វកម្មបញ្ញាសិប្បនិម្មិត"}},
+        "programs": {"DSE": "វិស្វកម្មវិទ្យាសាស្ត្រទិន្នន័យ"}},
 }
 KHMER_NUMERALS = str.maketrans("0123456789", "០១២៣៤៥៦៧៨៩")
 OPTION_RE = re.compile(r"Option (\d+)")
@@ -399,9 +376,6 @@ def render(result: dict, html: bool = False, compact: bool = False) -> str:
 
     if result["mode"] == "record":
         sections = result.get("sections") or [{"heading": result["heading"], "courses": result["courses"]}]
-        if len(sections) > 1:                         # no program named: say so, then one section each
-            names = t["and"].join(s["program"] for s in sections)
-            out += [e(t["both"].format(programs=names)), ""]
         for section in sections:
             courses = section["courses"]
             out += [b(e(section["heading"])), ""]
@@ -423,15 +397,14 @@ def render(result: dict, html: bool = False, compact: bool = False) -> str:
                     total = sum(x["credits"] for x in courses)
                     out += ["", e(t["total"].format(n=_num(len(courses), language), c=_num(total, language)))]
                 out.append("")
-            first = courses[0]                        # each program's records cite that program's page
+            first = courses[0]                        # the records cite the program's page
             if not compact:
                 out += [i(e(t["source"].format(title=first["source_title"], url=first["source_url"],
                                                date=_digits(first["retrieved"], language)))), ""]
-        if len(sections) > 1:
-            out.append(i(e(t["other"])))
 
     elif result["mode"] == "abstain":
-        out.append(e(t["abstain"] + (t["hint"] if result.get("collection") == "official" else "")))
+        refused = str(result.get("note") or "").startswith("not DSE")    # a question about another program
+        out.append(e(t["only" if refused else "abstain"] + (t["hint"] if result.get("collection") == "official" else "")))
         if result["passages"] and not compact:
             out += ["", i(e(t["closest"]))]
             out += [e(f"· {_cite(p['title'], p['anchor'])} — {p['section']}") for p in result["passages"]]

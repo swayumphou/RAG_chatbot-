@@ -29,14 +29,12 @@ from hybrid import OllamaDense, select, sparse_vector, tokenize, write_collectio
 from qdrant_client import QdrantClient  # noqa: E402
 from ingest import SourceLoader, chunk_pages, course_documents, practice_sources, validate  # noqa: E402
 
-PROGRAMS = {"DSE": "data science and engineering", "ITE": "information technology engineering",
-            "AIE": "artificial intelligence engineering"}
+PROGRAMS = {"DSE": "data science and engineering",    # DSE, plus the refused programs: recognized only
+            "ITE": "information technology engineering", "AIE": "artificial intelligence engineering"}  # to refuse
 TITLES = {"DSE": {"deep learning and application", "artificial intelligence", "project practicum",
-                  "introduction to data science and engineering"},
-          "ITE": {"project practicum", "fin tech"},
-          "AIE": {"large language models", "internship"}}
-DSE, ITE = "Data Science and Engineering", "Information Technology Engineering"
-UNNAMED = ["ITE", "DSE"]                              # looked up, separately, when no program is named
+                  "introduction to data science and engineering"}}
+DSE = "Data Science and Engineering"
+UNNAMED = ["DSE"]                                     # looked up when no program is named
 
 
 def go(query: str) -> dict:
@@ -66,18 +64,13 @@ class Routing(unittest.TestCase):
         self.assertEqual((r["intent"], r["program"], r["programs"], r["title"]),
                          ("COURSE_LOOKUP", None, UNNAMED, "deep learning and application"))
         self.assertEqual(go("deep lerning and application")["title"], "deep learning and application")   # typo
-        r = go("Project Practicum in year 2")                          # a title both ITE and DSE have
+        r = go("Project Practicum in year 2")                          # a title in several semesters
         self.assertEqual((r["intent"], r["programs"], r["year"]), ("COURSE_LOOKUP", UNNAMED, 2))
-        self.assertEqual(go("Fin Tech")["title"], "fin tech")          # an ITE-only title, no program named
-        r = go("Large Language Models in AIE")
-        self.assertEqual((r["intent"], r["program"], r["programs"], r["title"]),
-                         ("COURSE_LOOKUP", "AIE", ["AIE"], "large language models"))
         self.assertEqual(go("Introduction to Data Science and Engineering")["intent"], "COURSE_LOOKUP")
 
-    def test_a_program_name_is_not_mistaken_for_a_course(self):
-        r = go("Artificial Intelligence Engineering courses in year 1")
+    def test_a_refused_programs_name_is_not_mistaken_for_a_dse_course(self):
+        r = go("Artificial Intelligence Engineering courses in year 1")   # AIE, not DSE's "Artificial Intelligence"
         self.assertEqual((r["intent"], r["program"], r["title"]), ("CURRICULUM_LIST", "AIE", None))
-        self.assertEqual(go("Is there an internship?")["intent"], "QUESTION")   # AIE-only title, AIE not named
         self.assertEqual(go("difference between DSE and AIE courses")["intent"], "QUESTION")   # two programs
 
     def test_curriculum_list_and_question(self):
@@ -87,7 +80,6 @@ class Routing(unittest.TestCase):
         self.assertEqual((r["intent"], r["year"], r["semester"]), ("CURRICULUM_LIST", 1, 2))
         r = go("មុខវិជ្ជាឆ្នាំទី៣")                                       # Khmer: "subjects of year 3"
         self.assertEqual((r["intent"], r["year"]), ("CURRICULUM_LIST", 3))
-        self.assertEqual(go("AIE courses")["intent"], "CURRICULUM_LIST")
         self.assertEqual(go("How do I apply for a scholarship?")["intent"], "QUESTION")
 
     def test_another_universitys_program_does_not_get_dse_records(self):
@@ -248,7 +240,7 @@ class Answers(unittest.TestCase):
         courses = [{**base, "title": f"Course {n}", "credits": 3.0, "option": "", "status": "verified"}
                    for n in range(3)]
         courses.append({**base, "title": "Capstone", "credits": 2.0, "option": "", "status": "review_needed"})
-        result = {"route": "CURRICULUM_LIST", "mode": "record", "heading": "AIE", "courses": courses,
+        result = {"route": "CURRICULUM_LIST", "mode": "record", "heading": "DSE", "courses": courses,
                   "passages": [], "text": "", "top_score": None}
         text = render(result)
         self.assertIn("Capstone — 2 credits (record needs review)", text)
@@ -263,8 +255,8 @@ class Answers(unittest.TestCase):
         page = render(result, html=True)
         self.assertIn("A &lt;b&gt;title&lt;/b&gt;", page)
         self.assertIn("S &amp; T", page)
-        self.assertNotIn("what a program teaches", page)
-        self.assertIn("what a program teaches", render({**result, "collection": "official"}))
+        self.assertNotIn("what DSE teaches", page)
+        self.assertIn("what DSE teaches", render({**result, "collection": "official"}))
 
     def test_khmer_question_is_searched_in_english_and_answered_as_asked(self):
         kb = SimpleNamespace(enable_llm=True, collection="official", searcher=FakeSearcher())
@@ -318,57 +310,26 @@ class Answers(unittest.TestCase):
                           "text": "", "courses": [], "top_score": 0.2, "language": "Khmer"})
         self.assertTrue(refusal.startswith("ខ្ញុំរកមិនឃើញ"))
 
-    def test_no_program_named_shows_ite_and_dse_in_separate_sections(self):
+    def test_a_course_question_with_no_program_named_gets_dse_records(self):
         with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
             db = DB(Path(tmp) / "kb.sqlite3")
-            row = {"year": 2, "semester": 1, "title": "Project Practicum", "hours": "(0-4)", "option": "",
-                   "status": "verified", "notes": "", "source_id": "cur", "retrieved": "2026-11-04"}
             db.rebuild([{"source_id": "cur", "title": "Curricula", "publisher": "RUPP", "doc_type": "curriculum",
                          "file": "c.json", "version": "1", "sha256": "x"}],
-                       [{**row, "course_id": "DSE-1", "program_id": "DSE", "program_name": DSE, "credits": 2.0,
-                         "source_url": "https://rupp/dse"},
-                        {**row, "course_id": "ITE-1", "program_id": "ITE", "program_name": ITE, "credits": 1.0,
-                         "source_url": "https://rupp/ite"}],
+                       [{"course_id": "DSE-1", "program_id": "DSE", "program_name": DSE, "year": 2, "semester": 1,
+                         "title": "Project Practicum", "credits": 2.0, "hours": "(0-4)", "option": "",
+                         "status": "verified", "notes": "", "source_id": "cur", "source_url": "https://rupp/dse",
+                         "retrieved": "2026-11-04"}],
                        {"cur": {"pages": 1, "chunks": 1, "status": "ok"}})
-            kb = SimpleNamespace(db=db, names={"DSE": DSE, "ITE": ITE})
+            kb = SimpleNamespace(db=db, names={"DSE": DSE})
             result = answer_module._records(go("Project Practicum"), kb, "English")
-            self.assertEqual([s["program"] for s in result["sections"]], ["ITE", "DSE"])
+            self.assertEqual([s["program"] for s in result["sections"]], ["DSE"])
             text = render({**result, "language": "English"})
-            self.assertIn("You did not name a program, so here are ITE and DSE separately:", text)
-            self.assertIn("Year 2, semester 1 · 1 credit, hours (0-4)", text)          # ITE (singular)
-            self.assertIn("Year 2, semester 1 · 2 credits, hours (0-4)", text)         # DSE
-            self.assertLess(text.index(f"{ITE} (ITE)"), text.index("https://rupp/ite"))   # each section
-            self.assertLess(text.index("https://rupp/ite"), text.index(f"{DSE} (DSE)"))   # cites its own
-            self.assertLess(text.index(f"{DSE} (DSE)"), text.index("https://rupp/dse"))   # program page
-            self.assertIn("AIE courses in year 1", text)                               # how to ask for AIE
+            self.assertTrue(text.startswith(f"{DSE} (DSE)"))
+            self.assertIn("Year 2, semester 1 · 2 credits, hours (0-4)", text)
+            self.assertIn("https://rupp/dse", text)
             khmer = render({**answer_module._records(go("Project Practicum"), kb, "Khmer"), "language": "Khmer"})
-            self.assertIn("វិស្វកម្មបច្ចេកវិទ្យាព័ត៌មាន (ITE)", khmer)
             self.assertIn("វិស្វកម្មវិទ្យាសាស្ត្រទិន្នន័យ (DSE)", khmer)
-            named = answer_module._records(go("Project Practicum in DSE"), kb, "English")
-            self.assertEqual([s["program"] for s in named["sections"]], ["DSE"])
-            self.assertNotIn("separately", render({**named, "language": "English"}))   # named: one program only
             db.con.close()
-
-    def test_a_comparison_searches_each_program_and_takes_the_results_in_turns(self):
-        question = "What is the difference between DSE and ITE?"
-        self.assertEqual(go(question)["compared"], ["ITE", "DSE"])
-
-        class Searcher:                               # three passages per search, named after it
-            asked: list = []
-
-            def candidates(self, text):
-                self.asked.append(text)
-                tag = "ite" if "(ITE) bachelor" in text else "dse" if "(DSE) bachelor" in text else "q"
-                return [Document(page_content="[h]\nbody", metadata={
-                    "source_id": f"{tag}_{n}", "source_title": tag, "anchor": "p.1", "section": "S",
-                    "page": 1, "cosine": 0.7}) for n in range(3)]
-
-        kb = SimpleNamespace(enable_llm=False, collection="official", searcher=Searcher(),
-                             names={"DSE": DSE, "ITE": ITE})
-        result = answer_module._grounded(question, kb, 0.49, "English", ["ITE", "DSE"])
-        self.assertEqual(kb.searcher.asked, [f"What does the {ITE} (ITE) bachelor program teach?",
-                                             f"What does the {DSE} (DSE) bachelor program teach?", question])
-        self.assertEqual([p["source_id"] for p in result["passages"]], ["ite_0", "dse_0", "q_0", "ite_1", "dse_1"])
 
     def test_gemma_markdown_becomes_bold_and_bullets(self):
         result = {"route": "QUESTION", "mode": "llm", "passages": [], "courses": [], "top_score": 0.6,
@@ -378,7 +339,7 @@ class Answers(unittest.TestCase):
         self.assertNotIn("**", render(result))
 
     def test_a_thai_word_in_a_khmer_answer_gets_one_repair_call_else_the_sources_are_quoted(self):
-        passage = [{"n": 1, "title": "ITE", "anchor": "p.1", "body": "Internship at the end of year 3."}]
+        passage = [{"n": 1, "title": "DSE", "anchor": "p.1", "body": "Internship at the end of year 4."}]
         replies = iter(["និស្សិតទៅฝึกงាន [1]។", "និស្សិតទៅកម្មសិក្សា [1]។"])
         with mock.patch.object(answer_module, "_chat", side_effect=lambda *a, **k: next(replies)) as chat:
             self.assertEqual(answer_module.generate("When is the internship?", passage, "official", "Khmer"),
@@ -409,39 +370,34 @@ class Answers(unittest.TestCase):
         answer_module._grounded("what is DSE?", kb, 0.49, "English", ["DSE"])
         self.assertEqual(kb.searcher.asked, [f"What does the {DSE} (DSE) bachelor program teach?", "what is DSE?"])
 
-    def test_suggestions_cover_both_majors_until_one_is_known_and_never_repeat_the_question(self):
+    def test_suggestions_are_dse_questions_and_never_repeat_the_question(self):
         suggest = answer_module.suggest
-        self.assertEqual(suggest("English"), ["DSE courses in year 1", "ITE courses in year 1",
-                                              "What is the difference between DSE and ITE?"])
-        self.assertEqual(suggest("Khmer", None, 1, "មុខវិជ្ជាឆ្នាំទី១"),
-                         ["មុខវិជ្ជា DSE ឆ្នាំទី១", "មុខវិជ្ជា ITE ឆ្នាំទី១", "តើ DSE និង ITE ខុសគ្នាដូចម្តេច?"])
-        self.assertEqual(suggest("English", "DSE", 1), ["DSE courses in year 2", "What does the DSE program teach?",
-                                                        "What is the difference between DSE and ITE?"])
-        self.assertNotIn("What is the difference between DSE and ITE?",
-                         suggest("English", None, None, "what is the difference between DSE and ITE"))
-        every = [q for lang in ("English", "Khmer") for p in (None, "DSE", "ITE", "AIE") for y in (None, 1, 4)
-                 for q in suggest(lang, p, y)]
+        apply = "How can I apply to DSE at RUPP after Grade 12?"
+        self.assertEqual(suggest("English"), ["DSE courses in year 1", "What does the DSE program teach?", apply])
+        self.assertEqual(suggest("English", 1), ["DSE courses in year 2", "What does the DSE program teach?", apply])
+        self.assertEqual(suggest("Khmer", 4, "តើជំនាញ DSE រៀនអ្វីខ្លះ?"),           # after year 4: year 1 again
+                         ["មុខវិជ្ជា DSE ឆ្នាំទី១", "តើដាក់ពាក្យចូលរៀន DSE យ៉ាងដូចម្តេច?", "តើបញ្ចប់ DSE អាចធ្វើការអ្វីបាន?"])
+        every = [q for lang in ("English", "Khmer") for y in (None, 1, 4) for q in suggest(lang, y)]
+        self.assertFalse(any("ITE" in q or "AIE" in q for q in every))
         self.assertTrue(all(len(q) <= 55 for q in every))     # fits a Telegram button without cutting
         self.assertEqual({go(q)["intent"] for q in every if "courses" in q or "មុខវិជ្ជា" in q}, {"CURRICULUM_LIST"})
 
-    def test_a_program_without_records_is_refused_not_answered_with_another_programs(self):
+    def test_a_question_about_another_program_gets_the_only_dse_reply_not_dse_courses(self):
         class Searcher:
             def candidates(self, text):
                 raise AssertionError("must not search")   # refused before any search
 
         kb = SimpleNamespace(collection="official", searcher=Searcher(), names={"DSE": DSE}, titles={},
-                             programs={"DSE": "data science and engineering", "ITE": "information technology engineering"},
-                             lock=threading.Lock(), db=SimpleNamespace(log_query=lambda **_: None), enable_llm=True)
-        result = answer_module.answer("ITE courses in year 1", kb, surface="eval")
-        self.assertEqual((result["mode"], result["note"]), ("abstain", "no records for ITE"))
-        self.assertEqual(result["suggestions"][0], "DSE courses in year 1")         # only programs with data
-
-    def test_suggestions_offer_only_programs_with_records(self):
-        only_dse = answer_module.suggest("English", available=("DSE",))
-        self.assertEqual(only_dse, ["DSE courses in year 1", "What does the DSE program teach?",
-                                    "What jobs can DSE graduates do?"])
-        self.assertFalse(any("ITE" in q or "AIE" in q for q in
-                             answer_module.suggest("Khmer", "ITE", 1, "", ("DSE",))))   # ITE asked, no ITE data
+                             programs=PROGRAMS, lock=threading.Lock(),
+                             db=SimpleNamespace(log_query=lambda **_: None), enable_llm=True)
+        for question in ("ITE courses in year 1", "What is the difference between DSE and ITE?", "What is AIE?"):
+            result = answer_module.answer(question, kb, surface="eval")
+            self.assertEqual((result["mode"], result["courses"]), ("abstain", []))
+            self.assertTrue(render(result).startswith(
+                "I can only answer questions about the Data Science and Engineering (DSE) program."))
+        self.assertEqual(result["suggestions"][0], "DSE courses in year 1")
+        khmer = answer_module.answer("មុខវិជ្ជា ITE ឆ្នាំទី១", kb, surface="eval")
+        self.assertTrue(render(khmer).startswith("ខ្ញុំអាចឆ្លើយបានតែសំណួរអំពីជំនាញ"))
 
     def test_each_users_language_is_remembered(self):
         with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
@@ -490,6 +446,20 @@ class Answers(unittest.TestCase):
                 self.assertEqual(len(answered), 2)                     # ... and never sent to answer()
             self.assertEqual(db.language(telegram_bot._user_hash(42)), "Khmer")        # survives a restart
             db.con.close()
+
+    def test_the_welcome_greets_the_user_by_name_without_the_example_list(self):
+        sent = []
+        chat = SimpleNamespace(send_message=mock.AsyncMock(side_effect=lambda text, **_: sent.append(text)))
+        asyncio.run(telegram_bot._help(chat, "English", "Dara <3"))
+        asyncio.run(telegram_bot._help(chat, "Khmer", "សុខា"))
+        asyncio.run(telegram_bot._help(chat, "English", None))            # a user without a first name
+        self.assertTrue(sent[0].startswith("Hi Dara &lt;3! I answer questions"))   # escaped for Telegram HTML
+        self.assertTrue(sent[1].startswith("សួស្តី សុខា! ខ្ញុំឆ្លើយសំណួរ"))
+        self.assertTrue(sent[2].startswith("Hi! I answer questions"))
+        for text in sent:
+            self.assertNotIn("Try", text)
+            self.assertNotIn("សាកល្បង", text)
+            self.assertNotIn("/year 3", text)
 
     def test_telegram_answer_is_clean_and_resource_button_opens_and_closes_its_sources(self):
         passages = [{"n": n, "source_id": "s", "title": f"Source {n}", "anchor": f"p.{n}", "section": "Overview",

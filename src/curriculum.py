@@ -4,8 +4,8 @@ Routing (rules first - the intent set is tiny and debuggability matters most):
   COURSE_LOOKUP    a course title in a short question ("credits for Deep Learning and Application")
   CURRICULUM_LIST  a "courses" word + a year, semester or program ("DSE courses in year 3")
   QUESTION         everything else -> hybrid search over the official sources
-Records are looked up in the program named in the question. When none is named, they are looked up in
-each default program (ITE and DSE) separately and shown in separate sections, never merged into one.
+Records are looked up in DSE, the only program this assistant covers. A question naming another program
+(config.REFUSED_PROGRAMS) is recognized here so that answer() can refuse it.
 When unsure, route to QUESTION: a search still shows real sources; a wrong record lookup does not.
 
 Store: course answers come from SQLite, never from the vector index, so they are exact.
@@ -58,7 +58,7 @@ def _number(match) -> int | None:
 
 
 def route(query: str, programs: dict[str, str], titles: dict[str, set[str]],
-          default_programs: tuple[str, ...] = config.DEFAULT_PROGRAMS) -> dict:
+          default_programs: tuple[str, ...] = tuple(config.PROGRAM_NAMES)) -> dict:
     """`programs` maps program id -> normalized program name ("DSE" -> "data science and engineering").
     `titles` maps program id -> the normalized course titles of that program.
     Result: `program` = the program named (None if none), `programs` = the programs to look up."""
