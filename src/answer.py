@@ -330,7 +330,7 @@ TEXT = {    # the fixed words of an answer in each reply language (Gemma's own t
         "term": "Year {y}, semester {s}", "year": " · year {y}", "semester": " · semester {s}",
         "credit": "{c} credit", "credits": "{c} credits", "hours": ", hours {h}", "option": "Option {n}",
         "review": " (record needs review)", "note": "Note: {n}", "total": "Total: {n} courses, {c} credits",
-        "source": "Source: {title} · {url} · retrieved {date}",
+        "source": "Source: {title} · {url} · retrieved {date}", "retrieved": "retrieved {date}",
         "both": "You did not name a program, so here are {programs} separately:", "and": " and ",
         "other": "To see one program only, or AIE, name it in the question, e.g. “AIE courses in year 1”.",
         "programs": {}},                              # English program names come from the records
@@ -342,6 +342,7 @@ TEXT = {    # the fixed words of an answer in each reply language (Gemma's own t
         "credit": "{c} ក្រេឌីត", "credits": "{c} ក្រេឌីត", "hours": ", ម៉ោង {h}", "option": "មុខវិជ្ជាជ្រើសរើស {n}",
         "review": " (កំណត់ត្រានេះត្រូវពិនិត្យឡើងវិញ)", "note": "កំណត់សម្គាល់៖ {n}",
         "total": "សរុប៖ មុខវិជ្ជា {n} · {c} ក្រេឌីត", "source": "ប្រភព៖ {title} · {url} · ទាញយកថ្ងៃទី {date}",
+        "retrieved": "ទាញយកថ្ងៃទី {date}",
         "both": "ដោយសារអ្នកមិនបានបញ្ជាក់ជំនាញ ខាងក្រោមនេះជាមុខវិជ្ជាសម្រាប់ជំនាញ {programs} ដាច់ដោយឡែកពីគ្នា៖",
         "and": " និង ",
         "other": "សម្រាប់ជំនាញ AIE ឬដើម្បីមើលតែជំនាញមួយ សូមបញ្ជាក់ឈ្មោះជំនាញនៅក្នុងសំណួរ ឧទាហរណ៍ «មុខវិជ្ជា AIE ឆ្នាំទី១»។",
@@ -385,7 +386,9 @@ def _course_line(c: dict, t: dict, language: str) -> str:
     return line + (t["review"] if c["status"] == "review_needed" else "")
 
 
-def render(result: dict, html: bool = False) -> str:
+def render(result: dict, html: bool = False, compact: bool = False) -> str:
+    """compact: the answer only - no source list, no route footer. Telegram shows the sources behind
+    its Resource button instead (render_sources)."""
     language = result.get("language", "English")
     t = TEXT[language]
     e = (lambda s: escape(str(s), quote=False)) if html else str
@@ -421,34 +424,68 @@ def render(result: dict, html: bool = False) -> str:
                     out += ["", e(t["total"].format(n=_num(len(courses), language), c=_num(total, language)))]
                 out.append("")
             first = courses[0]                        # each program's records cite that program's page
-            out += [i(e(t["source"].format(title=first["source_title"], url=first["source_url"],
-                                           date=_digits(first["retrieved"], language)))), ""]
+            if not compact:
+                out += [i(e(t["source"].format(title=first["source_title"], url=first["source_url"],
+                                               date=_digits(first["retrieved"], language)))), ""]
         if len(sections) > 1:
             out.append(i(e(t["other"])))
 
     elif result["mode"] == "abstain":
         out.append(e(t["abstain"] + (t["hint"] if result.get("collection") == "official" else "")))
-        if result["passages"]:
+        if result["passages"] and not compact:
             out += ["", i(e(t["closest"]))]
             out += [e(f"· {_cite(p['title'], p['anchor'])} — {p['section']}") for p in result["passages"]]
 
     else:
         if result["text"]:
-            out += [_markdown(e(result["text"]), html), "", b(e(t["sources"]))]
+            out.append(_markdown(e(result["text"]), html))
+            if not compact:
+                out += ["", b(e(t["sources"]))]
         for p in result["passages"]:
+            snippet = p["body"] if len(p["body"]) <= SNIPPET_CHARS else p["body"][:SNIPPET_CHARS] + "…"
+            if compact:                               # without Gemma's text, the quotes are the answer
+                if not result["text"]:
+                    out += [b(e(f"[{p['n']}]")) + e(f" “{snippet}”"), ""]
+                continue
             out.append(b(e(f"[{p['n']}] {_cite(p['title'], p['anchor'])}")) + e(f" — {p['section']}"))
             if p["url"]:
                 out.append(e(p["url"]))
             if not result["text"]:
-                snippet = p["body"] if len(p["body"]) <= SNIPPET_CHARS else p["body"][:SNIPPET_CHARS] + "…"
                 out += [e(f"“{snippet}”"), ""]
 
     while out and not out[-1]:
         out.pop()
+    if compact:
+        return "\n".join(out)
     footer = f"route: {result['route']} · mode: {result['mode']}"
     if result["top_score"] is not None:
         footer += f" · score {result['top_score']}"
     return "\n".join(out + ["", i(e(footer))])
+
+
+def render_sources(result: dict) -> str:
+    """The Resource view of Telegram and the web page (HTML): where the answer comes from, each title a
+    link to its page instead of a bare URL. A Gemma answer lists only the passages it cites. "" = nothing
+    to show. Only http(s) addresses become links, so the HTML is safe to insert into a page."""
+    language = result.get("language", "English")
+    t = TEXT[language]
+    e = lambda s: escape(str(s), quote=False)          # noqa: E731
+    link = lambda title, url: (f'<a href="{escape(url)}">{e(title)}</a>'  # noqa: E731
+                               if url.startswith(("http://", "https://")) else f"<b>{e(title)}</b>")
+    if result["mode"] == "record":
+        books = dict.fromkeys((c["source_title"], c["source_url"], c["retrieved"]) for c in result["courses"])
+        lines = [f"• {link(title, url)}" + (f" · {e(t['retrieved'].format(date=_digits(day, language)))}" if day else "")
+                 for title, url, day in books]
+        heading = t["sources"]
+    else:
+        passages = result["passages"]
+        if result["mode"] == "llm":
+            cited = {int(n) for group in CITE_RE.findall(result["text"]) for n in group.split(",")}
+            passages = [p for p in passages if p["n"] in cited] or passages
+        lines = [("• " if result["mode"] == "abstain" else f"[{p['n']}] ") + link(p["title"], p["url"])
+                 + e(f", {p['anchor']} — {p['section']}") for p in passages]
+        heading = t["closest"] if result["mode"] == "abstain" else t["sources"]
+    return "\n".join([f"📚 <b>{e(heading)}</b>", *lines]) if lines else ""
 
 
 def paginate(text: str, limit: int = TELEGRAM_LIMIT) -> list[str]:

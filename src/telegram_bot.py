@@ -16,6 +16,10 @@ Suggestions: after every answer, a keyboard under the typing box offers 3 follow
 (answer.suggest) and the Language button. Tapping one sends it as a normal question. A message can
 carry only one keyboard, so the rating stays on the answer and the suggestions come in a short
 message right after it.
+
+Resource: an answer is shown clean, without its source list and links. The "📚 Resource" button
+under it opens the sources (each title a link) below the answer; "🔼 Hide resource" closes them.
+The buttons work for the last KEEP_ANSWERS answers since the bot started.
 """
 import argparse
 import asyncio
@@ -31,7 +35,7 @@ from telegram.ext import (AIORateLimiter, Application, CallbackQueryHandler, Com
                           ContextTypes, MessageHandler, filters)
 
 import config
-from answer import KB, LANGUAGES, answer, paginate, render, suggest
+from answer import KB, LANGUAGES, TELEGRAM_LIMIT, answer, paginate, render, render_sources, suggest
 
 ASK_LANGUAGE = "Please select your preferred language / សូមជ្រើសរើសភាសាដែលអ្នកចង់បាន៖"
 PICKER = InlineKeyboardMarkup([[InlineKeyboardButton("English", callback_data="lang:English"),
@@ -45,7 +49,7 @@ HELP = {
                 "• <code>/year 3</code>\n"
                 "• <code>What jobs can DSE graduates do?</code>\n"
                 "• <code>What are the DSE research areas?</code>\n\n"
-                "Every answer shows its source. Change the language: /language"),
+                "Tap 📚 Resource under an answer to see its sources. Change the language: /language"),
     "Khmer": ("សួស្តី! ខ្ញុំឆ្លើយសំណួរអំពីកម្មវិធីសិក្សា <b>Data Science and Engineering (DSE)</b> "
               "ដោយប្រើតែប្រភពផ្លូវការប៉ុណ្ណោះ។\n\n"
               "សាកល្បង៖\n"
@@ -53,7 +57,7 @@ HELP = {
               "• <code>/course Deep Learning and Application</code>\n"
               "• <code>/year 3</code>\n"
               "• <code>តើបញ្ចប់ DSE អាចធ្វើការអ្វីបាន?</code>\n\n"
-              "ចម្លើយនីមួយៗបង្ហាញប្រភពរបស់វា។ ប្តូរភាសា៖ /language"),
+              "ចុច 📚 ប្រភព នៅក្រោមចម្លើយ ដើម្បីមើលប្រភពរបស់វា។ ប្តូរភាសា៖ /language"),
 }
 CHOSEN = {"English": "Language: English", "Khmer": "ភាសា៖ ខ្មែរ"}
 THANKS = {"English": "Thanks for the feedback!", "Khmer": "អរគុណសម្រាប់មតិកែលម្អ!"}
@@ -61,6 +65,23 @@ FAILED = "Sorry, something went wrong. Try /help. / សូមអភ័យទោ�
 LANGUAGE_BUTTON = "🌐 Language / ភាសា"
 LANGUAGE_WORDS = {LANGUAGE_BUTTON.casefold(), "language", "ភាសា", "lang"}   # typed or tapped -> picker
 MORE = {"English": "More questions 👇", "Khmer": "សំណួរបន្ថែម 👇"}
+RESOURCE = {"English": ("📚 Resource", "🔼 Hide resource"), "Khmer": ("📚 ប្រភព", "🔼 លាក់ប្រភព")}   # (closed, open)
+GONE = {"English": "This answer is too old. Please ask again to see its resources.",
+        "Khmer": "ចម្លើយនេះចាស់ពេកហើយ។ សូមសួរម្តងទៀត ដើម្បីមើលប្រភព។"}
+KEEP_ANSWERS = 500                                    # answers whose Resource button still works (in memory)
+_answers: dict[str, dict] = {}                        # query_id -> {page, sources, language, shown, rated}
+
+
+def _buttons(query_id: str, entry: dict) -> InlineKeyboardMarkup | None:
+    """Under an answer: the Resource button (when it has sources), then the rating until it is used."""
+    rows = []
+    if entry["sources"]:
+        rows.append([InlineKeyboardButton(RESOURCE[entry["language"]][entry["shown"]],
+                                          callback_data=f"src:{query_id}")])
+    if not entry["rated"]:
+        rows.append([InlineKeyboardButton("👍", callback_data=f"rt:{query_id}:1"),
+                     InlineKeyboardButton("👎", callback_data=f"rt:{query_id}:-1")])
+    return InlineKeyboardMarkup(rows) if rows else None
 
 
 def _keyboard(suggestions: list[str]) -> ReplyKeyboardMarkup:
@@ -108,12 +129,16 @@ async def _answer(chat, ctx: ContextTypes.DEFAULT_TYPE, query: str, user: str, l
         result = await asyncio.to_thread(answer, query, ctx.bot_data["kb"], "telegram", user, language=language)
         _recent[key] = (now, result)
 
-    pages = paginate(render(result, html=True))
-    rating = InlineKeyboardMarkup([[InlineKeyboardButton("👍", callback_data=f"rt:{result['query_id']}:1"),
-                                    InlineKeyboardButton("👎", callback_data=f"rt:{result['query_id']}:-1")]])
+    pages = paginate(render(result, html=True, compact=True))
+    query_id = result["query_id"]
+    entry = {"page": pages[-1], "sources": render_sources(result), "language": language,
+             "shown": False, "rated": False}
+    _answers[query_id] = entry
+    while len(_answers) > KEEP_ANSWERS:
+        _answers.pop(next(iter(_answers)))            # the oldest answer's button stops working
     for n, page in enumerate(pages, start=1):
         await chat.send_message(page, parse_mode=ParseMode.HTML, disable_web_page_preview=True,
-                                reply_markup=rating if n == len(pages) else None)
+                                reply_markup=_buttons(query_id, entry) if n == len(pages) else None)
     if result.get("suggestions"):
         await chat.send_message(MORE[language], reply_markup=_keyboard(result["suggestions"]))
 
@@ -158,7 +183,29 @@ async def on_rating(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     db = ctx.bot_data["kb"].db
     db.rate(query_id, int(value))
     await update.callback_query.answer(THANKS[db.language(_user_hash(update.effective_user.id)) or "English"])
-    await update.callback_query.edit_message_reply_markup(None)
+    entry = _answers.get(query_id)
+    if entry:
+        entry["rated"] = True                         # the rating goes; the Resource button stays
+    await update.callback_query.edit_message_reply_markup(_buttons(query_id, entry) if entry else None)
+
+
+async def on_resource(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    """📚 Resource opens the answer's sources below it; 🔼 Hide resource closes them again."""
+    button = update.callback_query
+    query_id = button.data.split(":", 1)[1]
+    entry = _answers.get(query_id)
+    if not entry:                                     # the bot restarted since this answer
+        language = ctx.bot_data["kb"].db.language(_user_hash(update.effective_user.id)) or "English"
+        return await button.answer(GONE[language], show_alert=True)
+    await button.answer()
+    shown = not entry["shown"]
+    text = f"{entry['page']}\n\n{entry['sources']}" if shown else entry["page"]
+    if len(text) > TELEGRAM_LIMIT:                    # no room under the answer: send them on their own
+        return await button.message.reply_text(entry["sources"], parse_mode=ParseMode.HTML,
+                                               disable_web_page_preview=True)
+    entry["shown"] = shown
+    await button.edit_message_text(text, parse_mode=ParseMode.HTML, disable_web_page_preview=True,
+                                   reply_markup=_buttons(query_id, entry))
 
 
 async def on_error(update: object, ctx: ContextTypes.DEFAULT_TYPE) -> None:
@@ -212,6 +259,7 @@ def main() -> None:
                                    on_text))
     app.add_handler(CallbackQueryHandler(on_language_chosen, pattern=r"^lang:"))
     app.add_handler(CallbackQueryHandler(on_rating, pattern=r"^rt:"))
+    app.add_handler(CallbackQueryHandler(on_resource, pattern=r"^src:"))
     app.add_error_handler(on_error)
     print(f"bot running (answers by {config.OLLAMA_MODEL if config.ENABLE_LLM else 'quoted passages'}) "
           "- press Ctrl+C to stop")

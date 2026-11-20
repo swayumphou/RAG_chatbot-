@@ -73,8 +73,17 @@
   .pill.ok { background: var(--ok-soft); color: var(--ok); }
   .pill.none { background: var(--warn-soft); color: var(--warn); }
   .foot { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--line); }
-  .meta { color: var(--muted); font-size: .78rem; flex: 1; min-width: 12ch; }
-  .rate { display: flex; align-items: center; gap: 4px; color: var(--muted); font-size: .82rem; }
+  .resource {
+    font: inherit; font-size: .85rem; color: var(--accent); background: var(--accent-soft);
+    border: 1px solid transparent; border-radius: 999px; padding: 4px 12px; cursor: pointer;
+  }
+  .resource:hover, .resource:focus-visible { border-color: var(--accent); outline: none; }
+  .sources {                                          /* hidden until the Resource button opens it */
+    white-space: pre-wrap; margin-top: 10px; padding: 10px 12px; font-size: .9rem;
+    background: var(--bg); border: 1px solid var(--line); border-radius: 10px;
+  }
+  .sources a { color: var(--accent); }
+  .rate { display: flex; align-items: center; gap: 4px; color: var(--muted); font-size: .82rem; margin-left: auto; }
   .rate button { font: inherit; background: none; border: 1px solid var(--line); border-radius: 8px; padding: 2px 8px; cursor: pointer; }
   .rate button:hover, .rate button:focus-visible { border-color: var(--accent); outline: none; }
   .error { border-color: var(--warn); color: var(--warn); }
@@ -105,7 +114,7 @@
     <div class="logo" aria-hidden="true">DSE</div>
     <div>
       <h1 id="title">DSE Curriculum Assistant</h1>
-      <p class="tagline" id="tagline">Answers come only from official RUPP sources, and every answer shows its source.</p>
+      <p class="tagline" id="tagline">Answers come only from official RUPP sources. Click 📚 Resource under an answer to see its sources.</p>
     </div>
     <button type="button" class="lang" id="lang">Language / <span class="km">ភាសា</span></button>
   </div>
@@ -132,7 +141,8 @@
   const TEXT = {
     English: {
       title: "DSE Curriculum Assistant",
-      tagline: "Answers come only from official RUPP sources, and every answer shows its source.",
+      tagline: "Answers come only from official RUPP sources. Click 📚 Resource under an answer to see its sources.",
+      resource: "📚 Resource", hide: "🔼 Hide resource",
       intro: "Ask about courses, a year or semester, a program (DSE, ITE, AIE) or the department. Or try one of these:",
       placeholder: "Type your question…", aria: "Your question", ask: "Ask",
       thinking: "Looking through the official sources", helpful: "Helpful?",
@@ -147,7 +157,8 @@
     },
     Khmer: {
       title: "ជំនួយការកម្មវិធីសិក្សា DSE",
-      tagline: "ចម្លើយមកពីប្រភពផ្លូវការរបស់ RUPP តែប៉ុណ្ណោះ ហើយចម្លើយនីមួយៗបង្ហាញប្រភពរបស់វា។",
+      tagline: "ចម្លើយមកពីប្រភពផ្លូវការរបស់ RUPP តែប៉ុណ្ណោះ។ ចុច 📚 ប្រភព នៅក្រោមចម្លើយ ដើម្បីមើលប្រភពរបស់វា។",
+      resource: "📚 ប្រភព", hide: "🔼 លាក់ប្រភព",
       intro: "សួរអំពីមុខវិជ្ជា ឆ្នាំ ឬឆមាស កម្មវិធីសិក្សា (DSE, ITE, AIE) ឬដេប៉ាតឺម៉ង់។ ឬសាកល្បងមួយក្នុងចំណោមទាំងនេះ៖",
       placeholder: "វាយសំណួររបស់អ្នក…", aria: "សំណួររបស់អ្នក", ask: "សួរ",
       thinking: "កំពុងស្វែងរកក្នុងប្រភពផ្លូវការ", helpful: "មានប្រយោជន៍ទេ?",
@@ -227,8 +238,9 @@
     return el;
   }
 
-  // The server escapes all text and only adds <b> and <i>, so its HTML is safe to insert.
-  // Web addresses become links; quotes are excluded so a link can never break out of its attribute.
+  // The server escapes all text and only adds <b>, <i> and (in the sources) links to http(s) pages,
+  // so its HTML is safe to insert. Bare web addresses in an answer become links; quotes are excluded
+  // so a link can never break out of its attribute.
   function linkify(html) {
     return html.replace(/https?:\/\/[^\s<"']+/g, url => `<a href="${url}" target="_blank" rel="noopener">${url}</a>`);
   }
@@ -242,17 +254,24 @@
     return data;
   }
 
+  // The answer is shown clean; its sources wait behind the Resource button (a second click hides them).
   function showAnswer(box, data) {
-    const cut = data.html.lastIndexOf("\n\n<i>route:");            // the last line is technical detail
-    const body = cut < 0 ? data.html : data.html.slice(0, cut);
-    const meta = cut < 0 ? "" : data.html.slice(cut + 2).replace(/<\/?i>/g, "");
     const t = TEXT[language];
     const label = t.labels[data.mode] || "", kind = KINDS[data.mode] || "ok";
     box.classList.remove("dots");
-    box.innerHTML = `<span class="pill ${kind}">${label}</span><div class="answer">${linkify(body)}</div>
-      <div class="foot"><span class="meta">${meta}</span>
+    box.innerHTML = `<span class="pill ${kind}">${label}</span><div class="answer">${linkify(data.html)}</div>
+      <div class="sources" hidden>${data.sources || ""}</div>
+      <div class="foot">${data.sources ? `<button type="button" class="resource" aria-expanded="false">${t.resource}</button>` : ""}
       <span class="rate">${t.helpful} <button type="button" data-rating="1" aria-label="${t.yes}">👍</button>
       <button type="button" data-rating="-1" aria-label="${t.no}">👎</button></span></div>`;
+    const sources = box.querySelector(".sources"), resource = box.querySelector(".resource");
+    sources.querySelectorAll("a").forEach(a => { a.target = "_blank"; a.rel = "noopener"; });
+    if (resource) resource.addEventListener("click", () => {
+      const open = sources.hidden;
+      sources.hidden = !open;
+      resource.setAttribute("aria-expanded", String(open));
+      resource.textContent = open ? t.hide : t.resource;
+    });
     box.querySelectorAll(".rate button").forEach(button => button.addEventListener("click", async () => {
       const rate = box.querySelector(".rate");
       try {

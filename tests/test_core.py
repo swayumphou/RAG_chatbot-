@@ -471,7 +471,8 @@ class Answers(unittest.TestCase):
                 return {"query_id": "q", "suggestions": ["s1", "s2", "s3"]}
 
             with mock.patch.object(telegram_bot, "answer", fake_answer), \
-                 mock.patch.object(telegram_bot, "render", lambda result, html: "the answer"):
+                 mock.patch.object(telegram_bot, "render", lambda result, html, compact=False: "the answer"), \
+                 mock.patch.object(telegram_bot, "render_sources", lambda result: ""):
                 asyncio.run(telegram_bot.on_text(update("What do I study in year 1?"), ctx))
                 self.assertEqual((sent, answered), ([telegram_bot.ASK_LANGUAGE], []))   # asked, not answered
                 asyncio.run(telegram_bot.on_language_chosen(update(data="lang:Khmer"), ctx))
@@ -489,6 +490,59 @@ class Answers(unittest.TestCase):
                 self.assertEqual(len(answered), 2)                     # ... and never sent to answer()
             self.assertEqual(db.language(telegram_bot._user_hash(42)), "Khmer")        # survives a restart
             db.con.close()
+
+    def test_telegram_answer_is_clean_and_resource_button_opens_and_closes_its_sources(self):
+        passages = [{"n": n, "source_id": "s", "title": f"Source {n}", "anchor": f"p.{n}", "section": "Overview",
+                     "url": "https://example.edu/dse" if n == 2 else "", "course_id": None, "course_title": None,
+                     "score": 0.8, "body": "text"} for n in (1, 2)]
+        result = {"query_id": "q1", "route": "QUESTION", "mode": "llm", "language": "English",
+                  "collection": "official", "text": "DSE teaches machine learning [2].", "heading": "",
+                  "courses": [], "sections": [], "passages": passages, "note": "", "top_score": 0.8,
+                  "suggestions": []}
+        clean = render(result, html=True, compact=True)
+        self.assertEqual(clean, "DSE teaches machine learning [2].")      # no source list, link or footer
+        sources = answer_module.render_sources(result)
+        self.assertIn('[2] <a href="https://example.edu/dse">Source 2</a>, p.2 — Overview', sources)
+        self.assertNotIn("Source 1", sources)                              # only what the answer cites
+        self.assertIn("https://example.edu/dse", render(result))           # the terminal keeps the full view
+
+        course = {"title": "Capstone", "credits": 2.0, "hours": "", "option": "", "status": "", "notes": "",
+                  "year": 4, "semester": 2, "source_title": "Curricula", "source_url": "https://x",
+                  "retrieved": "2026-11-04"}
+        records = {"route": "COURSE_LOOKUP", "mode": "record", "heading": "DSE", "courses": [course],
+                   "passages": [], "text": "", "top_score": None}
+        self.assertNotIn("https://x", render(records, html=True, compact=True))
+        self.assertIn('<a href="https://x">Curricula</a> · retrieved 2026-11-04', answer_module.render_sources(records))
+        script = {**records, "courses": [{**course, "source_url": "javascript:alert(1)"}]}
+        self.assertNotIn("<a", answer_module.render_sources(script))       # only http(s) pages become links
+
+        sent, edits = [], []
+        chat = SimpleNamespace(id=8, send_action=mock.AsyncMock(),
+                               send_message=mock.AsyncMock(side_effect=lambda text, **kw: sent.append((text, kw))))
+        db = SimpleNamespace(language=lambda user: "English", rate=lambda query_id, value: None)
+        ctx = SimpleNamespace(bot_data={"kb": SimpleNamespace(db=db)}, user_data={})
+        labels = lambda markup: [[b.text for b in row] for row in markup.inline_keyboard]   # noqa: E731
+
+        def tap(handler, data):                       # a press on an inline button under the answer
+            button = SimpleNamespace(data=data, answer=mock.AsyncMock(), edit_message_reply_markup=mock.AsyncMock(),
+                                     edit_message_text=mock.AsyncMock(side_effect=lambda text, **kw: edits.append((text, kw))))
+            asyncio.run(handler(SimpleNamespace(effective_user=SimpleNamespace(id=42), callback_query=button), ctx))
+            return button
+
+        with mock.patch.object(telegram_bot, "answer", lambda *args, **kwargs: result):
+            asyncio.run(telegram_bot._answer(chat, ctx, "what is DSE?", "u", "English"))
+        self.assertEqual(sent[0][0], clean)
+        self.assertEqual(labels(sent[0][1]["reply_markup"]), [["📚 Resource"], ["👍", "👎"]])
+        tap(telegram_bot.on_resource, "src:q1")                            # open
+        self.assertEqual(edits[-1][0], f"{clean}\n\n{sources}")
+        self.assertEqual(labels(edits[-1][1]["reply_markup"]), [["🔼 Hide resource"], ["👍", "👎"]])
+        rated = tap(telegram_bot.on_rating, "rt:q1:1")                     # rating goes, Resource stays
+        self.assertEqual(labels(rated.edit_message_reply_markup.call_args.args[0]), [["🔼 Hide resource"]])
+        tap(telegram_bot.on_resource, "src:q1")                            # close
+        self.assertEqual(edits[-1][0], clean)
+        self.assertEqual(labels(edits[-1][1]["reply_markup"]), [["📚 Resource"]])
+        old = tap(telegram_bot.on_resource, "src:from-before-a-restart")
+        old.answer.assert_awaited_with(telegram_bot.GONE["English"], show_alert=True)
 
     def test_thai_and_burmese_lookalikes_are_mapped_to_khmer(self):
         self.assertEqual("វិស្วกម្ម (DSE) [1]၊".translate(answer_module.LOOKALIKES), "វិស្វកម្ម (DSE) [1],")

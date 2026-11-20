@@ -3,7 +3,8 @@
     python src\\web_app.py              then open http://127.0.0.1:8765
     python src\\web_app.py --port 8766  if the port is already in use
 
-Thin like the Telegram bot: one answer() call per question, rendered by the same render().
+Thin like the Telegram bot: one answer() call per question, rendered by the same render(). Like in
+Telegram, the answer is shown clean and its sources (render_sources) open under a "📚 Resource" button.
 The page asks for English or Khmer on the first visit and sends that choice with every question.
 The server listens on this computer only (127.0.0.1). Press Ctrl+C to stop it.
 """
@@ -12,7 +13,7 @@ import json
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 import config
-from answer import KB, LANGUAGES, answer, render
+from answer import KB, LANGUAGES, answer, render, render_sources
 
 MAX_BODY, MAX_QUESTION = 10_000, 500
 
@@ -56,7 +57,8 @@ class Handler(BaseHTTPRequestHandler):
             except Exception as exc:                   # e.g. Ollama is not running
                 return self._json(500, {"error": str(exc)})
             self._json(200, {"query_id": result["query_id"], "mode": result["mode"],
-                             "html": render(result, html=True), "suggestions": result["suggestions"]})
+                             "html": render(result, html=True, compact=True), "sources": render_sources(result),
+                             "suggestions": result["suggestions"]})
         elif self.path == "/api/rate":
             with self.kb.lock:
                 self.kb.db.rate(str(data.get("query_id", "")), 1 if data.get("rating") == 1 else -1)
