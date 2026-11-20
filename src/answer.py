@@ -48,7 +48,11 @@ class KB:
         self.searcher = Searcher(collection)
         self.db = DB()
         self.lock = threading.Lock()                  # one query at a time through the models
-        self.programs, self.names, self.titles = {}, {}, {}      # course records: official only
+        # `programs`: every department program, so "ITE courses" is recognized even without ITE records
+        # (and refused, not answered with another program's). `names`, `titles`: programs with records.
+        self.programs = ({pid: normalize(name) for pid, name in config.PROGRAM_NAMES.items()}
+                         if collection == "official" else {})
+        self.names, self.titles = {}, {}
         if collection == "official" and self.db.has_courses():
             for c in self.db.courses():
                 self.names[c["program_id"]] = c["program_name"]
@@ -70,12 +74,16 @@ def answer(query: str, kb: KB, surface: str = "cli", user_hash: str | None = Non
     language = reply_language(query, language)
     with kb.lock:
         routed = route(query, kb.programs, kb.titles)
-        result = ((_records(routed, kb, language) if kb.names else None)
-                  or _grounded(query, kb, threshold, language, routed["compared"]))
+        named = routed["compared"] or [p for p in [routed["program"]] if p]
+        if named and kb.programs and not any(p in kb.names for p in named):   # e.g. ITE, with no ITE data
+            result = _result("QUESTION", "abstain", note=f"no records for {', '.join(named)}")
+        else:
+            result = ((_records(routed, kb, language) if kb.names else None)
+                      or _grounded(query, kb, threshold, language, [p for p in named if p in kb.names]))
         sections = result["sections"]
         program = routed["program"] or (sections[0]["program"] if len(sections) == 1 else None)
         result.update(query_id=uuid.uuid4().hex, collection=kb.collection, language=language,
-                      suggestions=suggest(language, program, routed["year"], query)
+                      suggestions=suggest(language, program, routed["year"], query, tuple(kb.names))
                       if kb.collection == "official" else [])
         if surface != "eval" and kb.collection == "official":     # the log is training data: official only
             retrieved = [{"id": p["course_id"] or p["source_id"], "anchor": p["anchor"], "rank": p["n"],
@@ -91,28 +99,38 @@ def answer(query: str, kb: KB, surface: str = "cli", user_hash: str | None = Non
     return result
 
 
-SUGGEST = {   # follow-up question forms the assistant answers (golden set: l02, l07, l08, q09, q16, q17, k06, k07)
+SUGGEST = {   # follow-up question forms the assistant answers (each form has a golden-set question)
     "English": {"courses": "{p} courses in year {y}", "teach": "What does the {p} program teach?",
                 "compare": "What is the difference between {a} and {b}?",
-                "majors": "Which majors does the department offer?"},
+                "jobs": "What jobs can DSE graduates do?", "research": "What are the DSE research areas?"},
     "Khmer": {"courses": "មុខវិជ្ជា {p} ឆ្នាំទី{y}", "teach": "តើជំនាញ {p} រៀនអ្វីខ្លះ?",
-              "compare": "តើ {a} និង {b} ខុសគ្នាដូចម្តេច?", "majors": "តើដេប៉ាតឺម៉ង់មានជំនាញអ្វីខ្លះ?"},
+              "compare": "តើ {a} និង {b} ខុសគ្នាដូចម្តេច?",
+              "jobs": "តើបញ្ចប់ DSE អាចធ្វើការអ្វីបាន?", "research": "តើ DSE មានវិស័យស្រាវជ្រាវអ្វីខ្លះ?"},
 }
 
 
-def suggest(language: str, program: str | None = None, year: int | None = None, asked: str = "") -> list[str]:
+def suggest(language: str, program: str | None = None, year: int | None = None, asked: str = "",
+            available: tuple = ("DSE", "ITE", "AIE")) -> list[str]:
     """3 follow-up questions for the buttons next to the typing box (Telegram keyboard, web page bar).
-    Chosen by code, never written by Gemma, so every button leads to a real answer. No program known:
-    both majors. After a program: that program again (the next year) plus a comparison."""
+    Chosen by code, never written by Gemma, so every button leads to a real answer. Only programs with
+    records (`available`) are offered. No program known: DSE and ITE. After a program: that program
+    again (the next year), its overview, and a comparison. Jobs and research areas exist for DSE only
+    (passages in rupp-dse-degree.json)."""
     s = SUGGEST[language]
     courses = lambda p, y: s["courses"].format(p=p, y=_num(y, language))   # noqa: E731
-    if program:
-        other = "ITE" if program == "DSE" else "DSE"
-        options = [courses(program, year % 4 + 1 if year else 1), s["teach"].format(p=program),
-                   s["compare"].format(a=program, b=other), courses(program, 2), s["majors"]]
+    known = [p for p in ("DSE", "ITE", "AIE") if p in available]
+    if not known:
+        return []
+    if program in known:
+        other = next((p for p in known if p != program), None)
+        options = [courses(program, year % 4 + 1 if year else 1), s["teach"].format(p=program)]
+        options += [s["compare"].format(a=program, b=other)] if other else []
     else:
-        options = [courses("DSE", year or 1), courses("ITE", year or 1), s["compare"].format(a="DSE", b="ITE"),
-                   s["teach"].format(p="DSE"), s["majors"]]
+        main = known[:2]
+        options = [courses(p, year or 1) for p in main]
+        options += [s["compare"].format(a=main[0], b=main[1])] if len(main) > 1 else [s["teach"].format(p=main[0])]
+    options += [s["jobs"], s["research"]] if "DSE" in known else []
+    options += [courses(program or known[0], 2)]
     return [q for q in dict.fromkeys(options) if normalize(q) != normalize(asked)][:3]
 
 
@@ -152,20 +170,26 @@ def _passages(docs: list) -> list[dict]:
 PROGRAM_QUERY = "What does the {name} ({id}) bachelor program teach?"   # finds that program's overview first
 
 
-def _grounded(query: str, kb: KB, threshold: float, language: str, compared: list[str] = ()) -> dict:
+def _grounded(query: str, kb: KB, threshold: float, language: str, programs: list[str] = ()) -> dict:
+    """`programs`: the programs the question names ("what is DSE?", "DSE vs ITE")."""
     searched = query
     if kb.enable_llm and contains_khmer(query):       # the sources are English: search in English
         try:
             searched = translate(query)
         except Exception:                             # Ollama down -> search the Khmer text as it is
             pass
-    if len(compared) > 1 and kb.names:
-        # "DSE vs ITE": a single search returned DSE passages only (every chunk names the Department of
-        # Information Technology Engineering), and Gemma refused. So: one neutral search per program,
-        # plus the question itself, results taken in turns, so every compared program is represented.
-        runs = [sorted(kb.searcher.candidates(PROGRAM_QUERY.format(name=kb.names[p], id=p)),   # by meaning:
-                       key=lambda d: d.metadata["cosine"], reverse=True) for p in compared]    # overview first
-        runs.append(kb.searcher.candidates(searched))
+    if programs and kb.names:
+        # A bare abbreviation embeds poorly: "what is DSE?" found one course passage (score 0.49), not
+        # the DSE overview; "DSE vs ITE" found DSE passages only (every chunk names the Department of
+        # Information Technology Engineering). So: one neutral search per named program, plus the
+        # question itself, results taken in turns, so every named program's overview is offered.
+        runs = [sorted(kb.searcher.candidates(PROGRAM_QUERY.format(name=config.PROGRAM_NAMES.get(p, kb.names[p]),
+                                                                   id=p)),                   # by meaning:
+                       key=lambda d: d.metadata["cosine"], reverse=True) for p in programs]    # overview first
+        # The question's own search is ranked by meaning too: every course record of the program contains
+        # its name, so keyword ranking put course records above the passage that answers ("How are DSE
+        # students evaluated?" lost the evaluation passage, 0.64, to course records).
+        runs.append(sorted(kb.searcher.candidates(searched), key=lambda d: d.metadata["cosine"], reverse=True))
         candidates = [d for group in zip_longest(*runs) for d in group if d is not None]
     else:
         candidates = kb.searcher.candidates(searched)
@@ -267,10 +291,12 @@ TERM_NUMBER_RE = re.compile(r"(ឆ្នាំទី|ឆមាសទី)\s*([0-9
 
 
 def khmer_style(text: str) -> str:
-    """RUPP's Khmer terms (ឆ្នាំទី៣ ឆមាសទី១) in a Khmer answer, with Khmer numerals after them.
-    Other numbers (phone, credits, dates) stay as written."""
+    """RUPP's Khmer terms (ឆ្នាំទី៣ ឆមាសទី១) in a Khmer answer, with Khmer numerals after them; a program's
+    first mention gets its Khmer name too. Other numbers (phone, credits, dates) stay as written."""
     for loan, term in KHMER_TERMS.items():
         text = text.replace(loan, term)
+    for pid, english in config.PROGRAM_NAMES.items():     # Gemma keeps the English name despite rule 6
+        text = text.replace(f"{english} ({pid})", f"{TEXT['Khmer']['programs'][pid]} ({english}, {pid})", 1)
     text = ENGLISH_TERM_RE.sub(lambda m: {"year": "ឆ្នាំទី", "semester": "ឆមាសទី"}[m[1].lower()] + m[2], text)
     return TERM_NUMBER_RE.sub(lambda m: m[1] + m[2].translate(KHMER_NUMERALS), text)
 
@@ -299,8 +325,7 @@ def citations_valid(text: str, n_passages: int) -> bool:
 TEXT = {    # the fixed words of an answer in each reply language (Gemma's own text follows RULES 5-7)
     "English": {
         "abstain": "I could not find this in the sources I have.",
-        "hint": (" Try asking about a course, the courses in a year or semester, "
-                 "a program (DSE, ITE, AIE), or the department."),
+        "hint": " Try asking about a course, the courses in a year or semester, or what a program teaches.",
         "closest": "Closest sources (low confidence):", "sources": "Sources",
         "term": "Year {y}, semester {s}", "year": " · year {y}", "semester": " · semester {s}",
         "credit": "{c} credit", "credits": "{c} credits", "hours": ", hours {h}", "option": "Option {n}",
@@ -311,8 +336,7 @@ TEXT = {    # the fixed words of an answer in each reply language (Gemma's own t
         "programs": {}},                              # English program names come from the records
     "Khmer": {
         "abstain": "ខ្ញុំរកមិនឃើញព័ត៌មាននេះនៅក្នុងប្រភពដែលខ្ញុំមានទេ។",
-        "hint": (" សូមសួរអំពីមុខវិជ្ជាណាមួយ មុខវិជ្ជាក្នុងឆ្នាំ ឬឆមាសណាមួយ "
-                 "កម្មវិធីសិក្សា (DSE, ITE, AIE) ឬដេប៉ាតឺម៉ង់។"),
+        "hint": " សូមសួរអំពីមុខវិជ្ជាណាមួយ មុខវិជ្ជាក្នុងឆ្នាំ ឬឆមាសណាមួយ ឬអ្វីដែលជំនាញមួយបង្រៀន។",
         "closest": "ប្រភពដែលជិតបំផុត (ទំនុកចិត្តទាប)៖", "sources": "ប្រភព",
         "term": "ឆ្នាំទី{y} ឆមាសទី{s}", "year": " · ឆ្នាំទី{y}", "semester": " · ឆមាសទី{s}",
         "credit": "{c} ក្រេឌីត", "credits": "{c} ក្រេឌីត", "hours": ", ម៉ោង {h}", "option": "មុខវិជ្ជាជ្រើសរើស {n}",

@@ -18,8 +18,8 @@ src/                    Python implementation
   telegram_bot.py       Telegram bot
   web_app.py            local server for the browser page
   evaluate.py           evaluation on the golden set
-data/official/          curated web notes, the curriculum snapshot, a research-areas article (PDF),
-                        and their registry (sources.csv)
+data/official/          the DSE degree (rupp-dse-degree.json, from RUPP_resource.pdf), a research-areas
+                        article (PDF), and their registry (sources.csv)
 data/practice/          learning PDF and slides, separate from the official sources
 index/                  generated: vector index, SQLite records + query log, reports, bot lock
 evaluation/             golden_set.csv (questions + expected sources) and the latest report
@@ -67,10 +67,17 @@ language the question is typed in, including the fixed words of course lists and
 `index/kb.sqlite3` (table `user_language`, by hashed user id), so it survives a restart. The page keeps
 it in that browser. Without a choice (terminal, evaluation) the answer follows the question's language.
 
+**The official data (since 2026-11-19) is DSE only**: `rupp-dse-degree.json`, made from
+`RUPP_resource.pdf` (51 DSE course records, research areas, job prospects, the GPA grading scale), and
+the Springer research-areas article. Page 1 of the PDF is left out: it is Environmental Engineering text
+that RUPP's DSE page shows by mistake. The ITE/AIE course records, department contacts, library and
+foundation-year notes were deleted on purpose; questions about them are refused, and a question that
+names ITE or AIE is never answered with DSE records.
+
 Questions that work: `Deep Learning and Application` (a course), `DSE courses in year 3`,
-`AIE courses in year 2 semester 1`, `Which majors does the department offer?`. A course or year question
-that names no program (`មុខវិជ្ជាឆ្នាំទី១`, `Project Practicum`) is answered for **ITE and DSE in separate
-sections**, never merged, with a note on how to ask for AIE or for one program only.
+`What jobs can DSE graduates do?`, `What are the DSE research areas?`, `What GPA is a grade of A?`,
+`តើ DSE ជាអ្វី?`. If records for more programs are added again, a course or year question that names no
+program (`មុខវិជ្ជាឆ្នាំទី១`) is answered for **ITE and DSE in separate sections**, never merged.
 
 **Suggested questions.** After every answer, 3 follow-up questions appear as buttons: in Telegram under the
 typing box (with a **🌐 Language / ភាសា** button), on the web page right above it. Tapping one asks it. They
@@ -159,16 +166,16 @@ written by hand from the sources (`expected_answer`), and the key facts the real
 (`must_contain`: `|` = all required, `/` = accepted spellings). The evaluator prints `WRONG ANSWER`
 when a fact is missing.
 
-Results on 2026-11-17 (53 questions, Gemma on, threshold 0.49):
+Results on 2026-11-19 after the DSE-only data (65 questions, Gemma on, threshold 0.49):
 
 | Slice | Questions | Right source | Key facts correct |
 | :--- | ---: | :--- | :--- |
-| Course lookups (incl. a title both ITE and DSE have) | 8 | 8 | 8 |
-| Year / semester lists (incl. `មុខវិជ្ជាឆ្នាំទី១` with no program) | 8 | 8 | 8 |
-| General questions (English, incl. 4 on the research article, DSE vs ITE) | 17 | 17 | 17 |
-| General questions (Khmer, incl. DSE vs ITE) | 7 | 7 | 7 |
+| Course lookups (DSE) | 7 | 7 | 7 |
+| Year / semester lists (DSE) | 6 | 6 | 6 |
+| General questions (English: jobs, research areas, GPA, evaluation, "what is DSE?", the article) | 13 | 13 | 13 |
+| General questions (Khmer) | 7 | 7 | 7 |
 | Off-topic | 6 | 6 refused | |
-| In-domain but not in the sources (incl. 2 that tempt "RUPP researches X") | 7 | 7 refused | |
+| Not in the sources (incl. 19 about the deleted ITE/AIE/contact/library data, and 2 from page 1) | 26 | 26 refused | |
 
 The evaluator does not choose a reply language, so it measures English-to-English and Khmer-to-Khmer.
 Cross-language answers (English question, Khmer chosen, and the reverse) were checked by hand on 11

@@ -43,8 +43,8 @@ HELP = {
                 "• <code>What do I study in year 1?</code>\n"
                 "• <code>/course Deep Learning and Application</code>\n"
                 "• <code>/year 3</code>\n"
-                "• <code>AIE courses in year 2 semester 1</code>\n"
-                "• <code>Which majors does the department offer?</code>\n\n"
+                "• <code>What jobs can DSE graduates do?</code>\n"
+                "• <code>What are the DSE research areas?</code>\n\n"
                 "Every answer shows its source. Change the language: /language"),
     "Khmer": ("សួស្តី! ខ្ញុំឆ្លើយសំណួរអំពីកម្មវិធីសិក្សា <b>Data Science and Engineering (DSE)</b> "
               "ដោយប្រើតែប្រភពផ្លូវការប៉ុណ្ណោះ។\n\n"
@@ -52,7 +52,7 @@ HELP = {
               "• <code>មុខវិជ្ជាឆ្នាំទី១</code>\n"
               "• <code>/course Deep Learning and Application</code>\n"
               "• <code>/year 3</code>\n"
-              "• <code>តើដេប៉ាតឺម៉ង់មានជំនាញអ្វីខ្លះ?</code>\n\n"
+              "• <code>តើបញ្ចប់ DSE អាចធ្វើការអ្វីបាន?</code>\n\n"
               "ចម្លើយនីមួយៗបង្ហាញប្រភពរបស់វា។ ប្តូរភាសា៖ /language"),
 }
 CHOSEN = {"English": "Language: English", "Khmer": "ភាសា៖ ខ្មែរ"}

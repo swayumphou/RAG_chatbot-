@@ -48,6 +48,8 @@ ABSTAIN_THRESHOLD = float(os.getenv("ABSTAIN_THRESHOLD", "0.49"))  # min dense c
 #   questions only. In-domain questions the corpus cannot answer score as high as answerable ones,
 #   so the second check is Gemma's "sources do not answer this" rule - keep ENABLE_LLM on.
 FUZZY_TITLE_THRESHOLD = 88                            # similarity (0-100) for course-title lookup
+PROGRAM_NAMES = {"DSE": "Data Science and Engineering", "ITE": "Information Technology Engineering",
+                 "AIE": "Artificial Intelligence Engineering"}   # recognized in questions, records or not
 DEFAULT_PROGRAMS = tuple(p.strip() for p in os.getenv("DEFAULT_PROGRAMS", "ITE,DSE").split(",") if p.strip())
 #   a course or year question that names no program is answered for each of these, in separate sections
 

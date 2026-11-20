@@ -7,6 +7,7 @@ import gc
 import json
 import sys
 import tempfile
+import threading
 import unittest
 import warnings
 from pathlib import Path
@@ -227,6 +228,10 @@ class Search(unittest.TestCase):
         self.assertEqual([(d.metadata["source_id"], d.metadata["page"]) for d in kept],
                          [("library", 1), ("library", 2)])
         self.assertEqual(select(fused, threshold=0.90), [])                     # nothing passes -> abstain
+        page3 = [candidate("article", 3, 0.65), candidate("other", 1, 0.60), candidate("article", 3, 0.72)]
+        kept = select(page3, threshold=0.49)                  # page 3 keeps its place, with its best chunk
+        self.assertEqual([(d.metadata["source_id"], d.metadata["cosine"]) for d in kept],
+                         [("article", 0.72), ("other", 0.60)])
 
 
 class Answers(unittest.TestCase):
@@ -258,8 +263,8 @@ class Answers(unittest.TestCase):
         page = render(result, html=True)
         self.assertIn("A &lt;b&gt;title&lt;/b&gt;", page)
         self.assertIn("S &amp; T", page)
-        self.assertNotIn("DSE, ITE, AIE", page)
-        self.assertIn("DSE, ITE, AIE", render({**result, "collection": "official"}))
+        self.assertNotIn("what a program teaches", page)
+        self.assertIn("what a program teaches", render({**result, "collection": "official"}))
 
     def test_khmer_question_is_searched_in_english_and_answered_as_asked(self):
         kb = SimpleNamespace(enable_llm=True, collection="official", searcher=FakeSearcher())
@@ -388,6 +393,21 @@ class Answers(unittest.TestCase):
                          "ឆ្នាំទី៣ ឆមាសទី១ [5]។ ទូរស័ព្ទ +855 23 883 640")
         self.assertEqual(answer_module.khmer_style("នៅ year 3, semester 1 មាន Certificate of Foundation Year"),
                          "នៅ ឆ្នាំទី៣, ឆមាសទី១ មាន Certificate of Foundation Year")
+        self.assertEqual(answer_module.khmer_style(f"{DSE} (DSE) គឺជាកម្មវិធី... {DSE} (DSE) [1]"),  # first mention
+                         f"វិស្វកម្មវិទ្យាសាស្ត្រទិន្នន័យ ({DSE}, DSE) គឺជាកម្មវិធី... {DSE} (DSE) [1]")
+
+    def test_a_question_naming_one_program_also_searches_that_programs_overview(self):
+        class Searcher:
+            asked: list = []
+
+            def candidates(self, text):
+                self.asked.append(text)
+                return [Document(page_content="[h]\nbody", metadata={"source_id": f"s{len(self.asked)}",
+                        "source_title": "t", "anchor": "p.1", "section": "S", "page": 1, "cosine": 0.7})]
+
+        kb = SimpleNamespace(enable_llm=False, collection="official", searcher=Searcher(), names={"DSE": DSE})
+        answer_module._grounded("what is DSE?", kb, 0.49, "English", ["DSE"])
+        self.assertEqual(kb.searcher.asked, [f"What does the {DSE} (DSE) bachelor program teach?", "what is DSE?"])
 
     def test_suggestions_cover_both_majors_until_one_is_known_and_never_repeat_the_question(self):
         suggest = answer_module.suggest
@@ -403,6 +423,25 @@ class Answers(unittest.TestCase):
                  for q in suggest(lang, p, y)]
         self.assertTrue(all(len(q) <= 55 for q in every))     # fits a Telegram button without cutting
         self.assertEqual({go(q)["intent"] for q in every if "courses" in q or "មុខវិជ្ជា" in q}, {"CURRICULUM_LIST"})
+
+    def test_a_program_without_records_is_refused_not_answered_with_another_programs(self):
+        class Searcher:
+            def candidates(self, text):
+                raise AssertionError("must not search")   # refused before any search
+
+        kb = SimpleNamespace(collection="official", searcher=Searcher(), names={"DSE": DSE}, titles={},
+                             programs={"DSE": "data science and engineering", "ITE": "information technology engineering"},
+                             lock=threading.Lock(), db=SimpleNamespace(log_query=lambda **_: None), enable_llm=True)
+        result = answer_module.answer("ITE courses in year 1", kb, surface="eval")
+        self.assertEqual((result["mode"], result["note"]), ("abstain", "no records for ITE"))
+        self.assertEqual(result["suggestions"][0], "DSE courses in year 1")         # only programs with data
+
+    def test_suggestions_offer_only_programs_with_records(self):
+        only_dse = answer_module.suggest("English", available=("DSE",))
+        self.assertEqual(only_dse, ["DSE courses in year 1", "What does the DSE program teach?",
+                                    "What jobs can DSE graduates do?"])
+        self.assertFalse(any("ITE" in q or "AIE" in q for q in
+                             answer_module.suggest("Khmer", "ITE", 1, "", ("DSE",))))   # ITE asked, no ITE data
 
     def test_each_users_language_is_remembered(self):
         with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:

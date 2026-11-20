@@ -172,14 +172,17 @@ def read_collection(name: str) -> QdrantClient:
 # --- search ------------------------------------------------------------------------------------
 
 def select(candidates: list[Document], threshold: float, top_k: int = config.TOP_K) -> list[Document]:
-    """Keep fused order; require cosine >= threshold; at most one passage per (source, page)."""
-    seen, passages = set(), []
+    """Keep fused order; require cosine >= threshold; at most one passage per (source, page). A page
+    keeps the place where it first appears, but is represented by its chunk closest in meaning: the
+    first chunk in fused order was "9. Government" (0.65) for a healthcare question whose answer,
+    "10. Healthcare" (0.72), is on the same page."""
+    best: dict[tuple, Document] = {}                  # insertion order = where each page first appears
     for doc in candidates:
         key = (doc.metadata["source_id"], doc.metadata["page"], doc.metadata.get("course_id"))
-        if doc.metadata["cosine"] >= threshold and key not in seen:
-            seen.add(key)
-            passages.append(doc)
-    return passages[:top_k]
+        if doc.metadata["cosine"] >= threshold and (key not in best or
+                                                    doc.metadata["cosine"] > best[key].metadata["cosine"]):
+            best[key] = doc
+    return list(best.values())[:top_k]
 
 
 class Searcher:
