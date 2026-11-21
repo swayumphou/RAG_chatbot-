@@ -16,7 +16,7 @@ RAG assistant/
 │   ├── curriculum.py             routes course/year questions; SQLite course records
 │   ├── answer.py                 the core: question -> answer (records, or search + Gemma 4); terminal chat
 │   ├── web_app.py                server for the browser page (/api/ask, /api/rate)
-│   ├── telegram_bot.py           Telegram bot (language choice, 📚 Resource, rating, suggestions)
+│   ├── telegram_bot.py           Telegram bot (language choice, Resource, rating, suggestions)
 │   └── evaluate.py               scores the test questions in evaluation/golden_set.csv
 ├── web/
 │   └── index.html                FRONTEND: the browser page (HTML + CSS + JavaScript)
