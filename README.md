@@ -5,7 +5,7 @@ It answers questions about the **Data Science and Engineering (DSE)** program at
 from registered sources; the sources of every answer open under a **📚 Resource** button.
 You can ask in the terminal, in a browser page, or through a Telegram bot.
 
-## Folders
+## Folders Project Structure 
 
 ```text
 RAG assistant/
