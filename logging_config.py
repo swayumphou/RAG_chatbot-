@@ -226,10 +226,9 @@ def evaluate_alerts(
     p95 = snapshot.retrieval_p95_ms
     if p95 is not None and p95 > limits["retrieval_p95_ms"]:
         alerts.append(f"retrieval P95 {p95:.0f} ms > {limits['retrieval_p95_ms']:.0f} ms")
-    if snapshot.abstention_rate > limits["abstention_rate"]:
-        alerts.append(
-            f"abstention rate {snapshot.abstention_rate:.0%} > " f"{limits['abstention_rate']:.0%}"
-        )
+    abstention_limit = limits["abstention_rate"]
+    if snapshot.abstention_rate > abstention_limit:
+        alerts.append(f"abstention rate {snapshot.abstention_rate:.0%} > {abstention_limit:.0%}")
     if snapshot.llm_rejection_rate > limits["llm_rejection_rate"]:
         alerts.append(
             f"LLM rejection rate {snapshot.llm_rejection_rate:.0%} > "
@@ -522,7 +521,9 @@ def _redact_value(value: object, secrets: tuple[str, ...]) -> object:
     if isinstance(value, str):
         return redact(value, secrets)
     if isinstance(value, Mapping):
-        return {str(key): _redact_value(item, secrets) for key, item in value.items()}
+        return {
+            redact(str(key), secrets): _redact_value(item, secrets) for key, item in value.items()
+        }
     if isinstance(value, (list, tuple)):
         return [_redact_value(item, secrets) for item in value]
     return value

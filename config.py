@@ -67,6 +67,9 @@ DEFAULT_ENV_FILE: Final = Path(__file__).resolve().with_name(".env")
 _TRUE_VALUES: Final = frozenset({"1", "true", "yes", "on"})
 _FALSE_VALUES: Final = frozenset({"0", "false", "no", "off"})
 _SECRET_FIELDS: Final = frozenset({"telegram_bot_token", "kb_salt"})
+_LOG_LEVELS: Final = frozenset(
+    {"CRITICAL", "FATAL", "ERROR", "WARNING", "WARN", "INFO", "DEBUG", "NOTSET"}
+)
 
 
 class ConfigError(ValueError):
@@ -93,6 +96,7 @@ class Config:
     enable_llm: bool = False
     abstain_threshold: float = ABSTAIN_THRESHOLD
     kb_collection: str = COLLECTION
+    log_level: str = "INFO"
 
     telegram_bot_token: str | None = field(default=None, repr=False)
     kb_salt: str | None = field(default=None, repr=False)
@@ -123,6 +127,12 @@ class Config:
         _require_text("EMBED_MODEL", self.embed_model)
         _require_text("OLLAMA_MODEL", self.ollama_model)
         _require_text("KB_COLLECTION", self.kb_collection)
+        _require_text("LOG_LEVEL", self.log_level)
+
+        normalized_level = self.log_level.strip().upper()
+        if normalized_level not in _LOG_LEVELS:
+            raise ConfigError("LOG_LEVEL must be DEBUG, INFO, WARNING, ERROR, or CRITICAL.")
+        object.__setattr__(self, "log_level", normalized_level)
 
         if not isinstance(self.enable_llm, bool):
             raise ConfigError("ENABLE_LLM must be a boolean.")
@@ -133,9 +143,8 @@ class Config:
         if not math.isfinite(self.abstain_threshold):
             raise ConfigError("ABSTAIN_THRESHOLD must be a finite number.")
         if not 0.0 <= self.abstain_threshold <= 1.0:
-            raise ConfigError(
-                "ABSTAIN_THRESHOLD must be between 0 and 1 " f"(got {self.abstain_threshold!r})."
-            )
+            threshold = self.abstain_threshold
+            raise ConfigError(f"ABSTAIN_THRESHOLD must be between 0 and 1 (got {threshold!r}).")
 
         for name in _SECRET_FIELDS:
             value = getattr(self, name)
@@ -238,6 +247,7 @@ def load_config(
             values, "ABSTAIN_THRESHOLD", ABSTAIN_THRESHOLD, low=0.0, high=1.0
         ),
         kb_collection=_text_setting(values, "KB_COLLECTION", COLLECTION),
+        log_level=_text_setting(values, "LOG_LEVEL", "INFO"),
         telegram_bot_token=_optional_secret(values, "TELEGRAM_BOT_TOKEN"),
         kb_salt=_optional_secret(values, "KB_SALT"),
     )
@@ -305,10 +315,10 @@ def _read_env_file(path: Path) -> dict[str, str]:
             raise ConfigError(f"{path.name}:{lineno}: invalid environment variable name {key!r}.")
 
         value = raw_value.strip()
+        if not value.startswith(('"', "'")) and " #" in value:
+            value = value.split(" #", 1)[0].rstrip()
         if len(value) >= 2 and value[0] == value[-1] and value[0] in {'"', "'"}:
             value = value[1:-1]
-        elif " #" in value:
-            value = value.split(" #", 1)[0].rstrip()
 
         values[key] = value
 

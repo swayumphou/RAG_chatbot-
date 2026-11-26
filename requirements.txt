@@ -23,7 +23,7 @@
 #
 # OCR additionally needs the Tesseract binary on PATH; pytesseract is only the
 # Python wrapper. Install Tesseract separately (for example `winget install
-# UB-Mannheim.TesseractOCR`) and set TESSERACT_CMD only if it is not on PATH.
+# UB-Mannheim.TesseractOCR`) and confirm `tesseract --version` works.
 
 # --- LangChain orchestration -------------------------------------------------
 langchain==1.5.2

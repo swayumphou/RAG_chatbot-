@@ -40,7 +40,7 @@ include = [
     "retrieval*",
     "store*",
 ]
-exclude = ["data*", "docs*", "implementation*", "legacy*", "tests*"]
+exclude = ["data", "docs*", "implementation*", "legacy*", "tests*"]
 
 [tool.pytest.ini_options]
 minversion = "8.0"
