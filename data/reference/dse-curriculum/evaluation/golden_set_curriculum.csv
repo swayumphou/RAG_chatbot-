@@ -1,0 +1,60 @@
+query_id,query,slice,expected_route,expected_ids,expected_answer,must_contain,notes
+c01,How many credits is Deep Learning and Application?,course,COURSE_LOOKUP,Deep Learning and Application,"DSE year 3, semester 2: 3 credits, hours (2-2).","3 credits|year 3, semester 2",title in a question (default program DSE)
+c02,Statistics for Engineers,course,COURSE_LOOKUP,Statistics for Engineers,"DSE year 1, semester 2: 3 credits, hours (2-2).","3 credits|year 1, semester 2",bare title
+c03,deep lerning and application,course,COURSE_LOOKUP,Deep Learning and Application,"DSE year 3, semester 2: 3 credits, hours (2-2).","3 credits|year 3, semester 2",typo in title
+c04,Project Practicum in year 2,course,COURSE_LOOKUP,Project Practicum,"DSE year 2: Project Practicum in semester 1 and 2, 2 credits each, hours (0-4).","(DSE)|2 credits|year 2, semester 1|year 2, semester 2",repeated title narrowed by year
+c08,Project Practicum,course,COURSE_LOOKUP,Project Practicum,"DSE: Project Practicum, 2 credits in each of 6 semesters (years 2-4).",(DSE)|2 credits,a title repeated in 6 semesters
+c07,Introduction to Data Science and Engineering,course,COURSE_LOOKUP,Introduction to Data Science and Engineering,"DSE year 1, semester 2: 2 credits, hours (3-0).","2 credits|year 1, semester 2",title that contains a program name
+c09,How many credits is the Professional Internship?,course,COURSE_LOOKUP,Professional Internship,"DSE year 4, semester 2: 8 credits.","8 credits|year 4, semester 2",RUPP_resource.pdf
+l01,What do I study in year 3 semester 1?,list,CURRICULUM_LIST,Data Analytics and Machine Learning|Artificial Intelligence,"DSE year 3, semester 1: 6 courses, 17 credits, including Artificial Intelligence and Data Analytics and Machine Learning.","(DSE)|Total: 6 courses, 17 credits",year+semester with no program named (DSE)
+l02,DSE courses in year 1,list,CURRICULUM_LIST,English Composition|Statistics for Engineers,"DSE year 1: 16 courses, 47 credits, including English Composition and Statistics for Engineers.","Total: 16 courses, 47 credits",program+year
+l04,subjects in the first year second semester,list,CURRICULUM_LIST,Engineering Graphics,"DSE year 1, semester 2: 8 courses, 23 credits, including Engineering Graphics.","Total: 8 courses, 23 credits",ordinal words
+l06,មុខវិជ្ជាឆ្នាំទី៣,list,CURRICULUM_LIST,Artificial Intelligence|Cognitive Computing,"DSE year 3: 12 courses, 34 credits, including Artificial Intelligence and Cognitive Computing.",(DSE)|សរុប៖ មុខវិជ្ជា ១២ · ៣៤ ក្រេឌីត,khmer: subjects of year 3 (Khmer words and numerals)
+l07,មុខវិជ្ជាឆ្នាំទី១,list,CURRICULUM_LIST,English Composition,"DSE year 1: 16 courses, 47 credits.",(DSE)|សរុប៖ មុខវិជ្ជា ១៦ · ៤៧ ក្រេឌីត,khmer: year 1 with no program (advisor example 1)
+l10,មុខវិជ្ជា DSE ឆ្នាំទី២,list,CURRICULUM_LIST,Math III: Calculus II,"DSE year 2: 14 courses, 40 credits.",(DSE)|សរុប៖ មុខវិជ្ជា ១៤ · ៤០ ក្រេឌីត,khmer: a suggestion button form
+l09,What do I study in year 4 semester 2?,list,CURRICULUM_LIST,Leadership Skill|Final Project,"DSE year 4, semester 2: Leadership Skill (3), Professional Internship (8), Final Project (7).",Leadership Skill|8 credits|7 credits,RUPP_resource.pdf
+q09,What does the Data Science and Engineering program teach?,question,QUESTION,rupp_dse_degree,The curriculum is designed to give students the ability to use new technologies and theories to design and develop AI and Machine Learning.,machine learning,program overview
+q12,What are the research areas in data science?,question,QUESTION,dse_research_areas,"The Springer Nature article lists 11: AI / machine learning, automation, business, computer vision and NLP, data mining, data management, data visualization, genetic studies, government, healthcare and responsible AI.",data mining/data management/visualization/healthcare/automation/genetic/government/computer vision/responsible ai,research areas (names at least one listed area)
+q13,When did data science become an independent field?,question,QUESTION,dse_research_areas,"In the decade starting 2010 (with big data, cloud and IoT).",2010,research article intro
+q14,How is data science used in healthcare?,question,QUESTION,dse_research_areas,"Drug discovery, medical diagnosis, preventive care, medical image processing, electronic health records and wearables; it also helped during Covid-19.",drug discovery/diagnosis,research article healthcare
+q15,What is responsible AI?,question,QUESTION,dse_research_areas,"Research on making AI decisions reliable, explainable, accountable and ethical, so that AI systems can be trusted.",explainab|ethic,research article (was cut off mid-sentence before paragraph chunking)
+h06,What research does the RUPP DSE department do?,question,QUESTION,rupp_dse_degree,"Research areas: Web and Cloud Technology, AI or Machine Learning, Big Data, Business Intelligence.",Web and Cloud|Big Data|Business Intelligence,answerable since RUPP_resource.pdf (was: must refuse)
+q18,what is DSE?,question,QUESTION,rupp_dse_degree,Data Science and Engineering (DSE): a bachelor program whose curriculum is designed to design and develop AI and Machine Learning.,Data Science and Engineering|machine learning,program full name and meaning (abbreviation only)
+q20,What jobs can DSE graduates do?,question,QUESTION,rupp_dse_degree,"Data Analyst, Business Intelligence Analyst, Associate Data Engineer, Data Engineer, AI/ML Engineer.",Data Analyst|Data Engineer|Business Intelligence,RUPP_resource.pdf job prospects
+q21,What are the DSE research areas?,question,QUESTION,rupp_dse_degree,"Web and Cloud Technology, AI or Machine Learning, Big Data, Business Intelligence.",Web and Cloud|Big Data|Business Intelligence,RUPP_resource.pdf research areas
+q22,What GPA is a grade of A?,question,QUESTION,rupp_dse_degree,"GPA 4.0 (score 85-100, Excellent).",4.0,RUPP_resource.pdf grading scale
+q23,What score do I need to get a B+?,question,QUESTION,rupp_dse_degree,"80-84 (GPA 3.5, Very Good).",80,RUPP_resource.pdf grading scale
+q24,How are DSE students evaluated?,question,QUESTION,rupp_dse_degree,"At the end of each semester, as GPA and cumulative GPA on a 4.00 scale.",semester|GPA,RUPP_resource.pdf evaluation
+q01,Which majors does the department offer?,question,QUESTION,rupp_dse_degree,The Data Science and Engineering Department offers the DSE bachelor degree (the only program in the sources now).,Data Science and Engineering,answerable from RUPP_resource.pdf: the DSE department offers the DSE degree
+a01,How can I apply to DSE at RUPP after Grade 12?,question,QUESTION,dse_admission_guide,"Complete Grade 12, obtain Bac II, meet the DSE admission requirements, complete the application and any entrance examination; Bac II alone does not guarantee admission.",Bac II|entrance/admission,admission steps (dse-admission-guide.md - team guidance)
+a02,តើខ្ញុំអាចដាក់ពាក្យចូលរៀន DSE នៅ RUPP ក្រោយបញ្ចប់ថ្នាក់ទី១២ យ៉ាងដូចម្តេច?,question_km,QUESTION,dse_admission_guide,"Same as a01, in Khmer.",Bac II,khmer: how to apply after grade 12
+a03,តើដាក់ពាក្យចូលរៀន DSE យ៉ាងដូចម្តេច?,question_km,QUESTION,dse_admission_guide,"Same as a01, in Khmer.",Bac II,khmer: a suggestion button form (how to apply)
+q25,What does the DSE program teach?,question,QUESTION,rupp_dse_degree,"Statistics, data engineering, analytics and machine learning, with an internship and a final project.",machine learning/AI,a suggestion button form
+k05,តើវិទ្យាសាស្ត្រទិន្នន័យមានវិស័យស្រាវជ្រាវអ្វីខ្លះ?,question_km,QUESTION,dse_research_areas,"Areas such as AI / machine learning, data mining, data management, data visualization and healthcare.",data mining/data management/visualization/healthcare/automation/machine learning/computer vision/សុខាភិបាល/ស្វ័យប្រវត្តិកម្ម,khmer: what research areas does data science have
+k07,តើជំនាញ DSE រៀនអ្វីខ្លះ?,question_km,QUESTION,rupp_dse_degree,"Statistics, data engineering, analytics and machine learning, with an internship and a final project.",machine learning/AI,khmer: a suggestion button form
+k08,តើ DSE ជាអ្វី?,question_km,QUESTION,rupp_dse_degree,"Same as q18, in Khmer, with the Khmer name វិស្វកម្មវិទ្យាសាស្ត្រទិន្នន័យ.",វិស្វកម្មវិទ្យាសាស្ត្រទិន្នន័យ|Data Science and Engineering,khmer: program full name and meaning
+k09,តើបញ្ចប់ DSE អាចធ្វើការអ្វីបាន?,question_km,QUESTION,rupp_dse_degree,"Same as q20, in Khmer.",Data Analyst|Data Engineer,khmer: job prospects (a suggestion button)
+k10,តើ DSE មានវិស័យស្រាវជ្រាវអ្វីខ្លះ?,question_km,QUESTION,rupp_dse_degree,"Same as q21, in Khmer.",Big Data|Business Intelligence,khmer: research areas (a suggestion button)
+k11,តើត្រូវបានពិន្ទុប៉ុន្មានទើបបាននិទ្ទេស A?,question_km,QUESTION,rupp_dse_degree,Score 85-100.,85,khmer: score for grade A
+k01,តើដេប៉ាតឺម៉ង់មានជំនាញអ្វីខ្លះ?,question_km,QUESTION,rupp_dse_degree,DSE (ជំនាញ also means 'skill': an answer may list the department's research knowledge).,DSE,khmer: majors of the department; ជំនាញ = major or skill
+x01,What is the price of a motorbike in Phnom Penh?,negative,QUESTION,,Refuse.,,off-topic
+x02,Who won the football world cup?,negative,QUESTION,,Refuse.,,off-topic
+x03,Give me a recipe for fish amok,negative,QUESTION,,Refuse.,,off-topic
+x04,How do I apply for a US tourist visa?,negative,QUESTION,,Refuse.,,off-topic
+x05,តើអាកាសធាតុថ្ងៃនេះយ៉ាងម៉េច?,negative,QUESTION,,Refuse.,,khmer: how is the weather today
+x06,សូមប្រាប់រូបមន្តធ្វើអាម៉ុកត្រី,negative,QUESTION,,Refuse.,,khmer: recipe for fish amok
+q02,Where is the department office?,negative_hard,QUESTION,,Refuse: department contact deleted on 2026-11-19.,,was answerable before: address
+q03,What is the email address of the department?,negative_hard,QUESTION,,Refuse: department contact deleted on 2026-11-19.,,was answerable before: email
+q06,What does the Hun Sen Library offer?,negative_hard,QUESTION,,Refuse: library source deleted on 2026-11-19.,,was answerable before: library
+q07,Does the library have an online catalog?,negative_hard,QUESTION,,Refuse: library source deleted on 2026-11-19.,,was answerable before: library catalog
+q10,What is the phone number of the university?,negative_hard,QUESTION,,Refuse: university contact deleted on 2026-11-19.,,was answerable before: university contact
+k02,តើបណ្ណាល័យ ហ៊ុន សែន មានអ្វីខ្លះ?,negative_hard,QUESTION,,Refuse: library source deleted on 2026-11-19.,,was answerable before: what does the Hun Sen library have
+k04,តើអ៊ីមែលរបស់ដេប៉ាតឺម៉ង់គឺអ្វី?,negative_hard,QUESTION,,Refuse: department contact deleted on 2026-11-19.,,was answerable before: what is the department email
+h01,How much is the tuition fee?,negative_hard,QUESTION,,Refuse: the sources have no fees.,,in-domain but not in the corpus
+h02,When is the application deadline?,negative_hard,QUESTION,,Refuse: the sources have no deadlines.,,in-domain but not in the corpus
+h03,Are there scholarships for new students?,negative_hard,QUESTION,,Refuse: the sources have no scholarships.,,in-domain but not in the corpus
+h04,What BacII grade do I need to apply?,negative_hard,QUESTION,,Refuse: the sources have no admission requirements.,,in-domain but not in the corpus
+h05,What is the salary of a data scientist in Cambodia?,negative_hard,QUESTION,,Refuse: the sources have no salaries.,,in-domain but not in the corpus
+h07,Does RUPP teach ChatGPT?,negative_hard,QUESTION,,Refuse: no source says so (the article only names ChatGPT as an AI product).,,must not link the article's ChatGPT mention to RUPP
+h08,Is the DSE program supported by KOICA?,negative_hard,QUESTION,,"Refuse: KOICA is on page 1 of RUPP_resource.pdf, which is Environmental Engineering text and left out.",,page 1 of RUPP_resource.pdf must not be used
+h09,What are the optional tracks in the last semester?,negative_hard,QUESTION,,"Refuse: the tracks are on page 1 of RUPP_resource.pdf (Environmental Engineering), left out.",,page 1 of RUPP_resource.pdf must not be used
