@@ -6,7 +6,7 @@ Each phase has a goal, dependencies, and an exit gate. The individual task cards
 
 **Goal:** Decide what is being built, freeze the reference code, and create the package/tooling skeleton.
 **Depends on:** nothing.
-**Exit gate:** an accepted product-scope ADR, a `v2.0` branch, a package skeleton, and a documented environment.
+**Exit gate:** an accepted product-scope ADR, a `refactored` integration branch, a package skeleton, and a documented environment.
 
 ---
 

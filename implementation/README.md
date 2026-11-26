@@ -21,6 +21,8 @@ This handbook is the working manual. The specs say **what** the product must do;
 9. `implementation/spec/PHASES.md` — phase goals and exit gates.
 10. `implementation/tasks/README.md` — the task index and status board.
 11. The individual task card in `implementation/tasks/` that you are picking up.
+12. `CLAUDE.md` — project instructions for Claude Code.
+13. The matching skill in `.agents/skills/` — project-specific implementation guardrails.
 
 Do not skip `spec/INTERFACES.md`. Most integration bugs in this project will come from two tasks disagreeing about a field name, a payload key, or a return shape.
 
@@ -72,7 +74,7 @@ The pulled code is quarantined in `legacy/dse-curriculum/`; it is reference only
 
 1. Pick the lowest-numbered unblocked task from `implementation/tasks/README.md`.
 2. Read the task card and every document listed in its **Spec** and **Interfaces** fields.
-3. Create a branch from `v2.0`:
+3. Create a branch from `refactored`:
    `git switch -c task/T1.5-manifest-validator`
 4. Implement **only** the files listed in the card. If another file must change, update the card first (or ask for a ruling).
 5. Write the tests named in the card. Tests are part of the deliverable, not an optional extra.
@@ -91,7 +93,7 @@ The pulled code is quarantined in `legacy/dse-curriculum/`; it is reference only
 | `IN PROGRESS` | Branch exists; implementation underway |
 | `BLOCKED` | Waiting on a decision or another task |
 | `REVIEW` | Implementation and tests are ready for the manager |
-| `DONE` | Reviewed and merged into `v2.0` |
+| `DONE` | Reviewed and merged into `refactored` |
 
 ### Moving a completed task
 
@@ -212,7 +214,7 @@ The manager then runs the card's primary test, reviews spec compliance and code 
 ## 8. Roles and verification policy
 
 - **Implementer:** reads the card, writes code and tests, updates the card, commits. Does not merge.
-- **Manager:** checks the spec against the diff, runs the primary test named in the card, and either requests changes or merges into `v2.0`.
+- **Manager:** checks the spec against the diff, runs the primary test named in the card, and either requests changes or merges into `refactored`.
 - **Verification runs** are the manager's job. If you are dispatched as a subagent, write the tests but do not run the full suite; a syntax check (`python -m py_compile <file>`) is allowed. If you are the human owner working locally, the commands in `spec/TESTING.md` are yours to run.
 - **Reviewer:** checks both spec compliance and code quality. A task is not approved on passing tests alone.
 
@@ -324,7 +326,7 @@ rupp-senior-kb/
 └── legacy/dse-curriculum/          # pulled reference code, never imported
 ```
 
-`docs/`, `implementation/`, and `legacy/` stay outside the package tree. The old `src/` tree already lives in `legacy/dse-curriculum/src/`; Phase 8 verifies that no V2.0 code imports it.
+`docs/`, `implementation/`, `.agents/`, `CLAUDE.md`, and `legacy/` stay outside the package tree. The old `src/` tree already lives in `legacy/dse-curriculum/src/`; Phase 8 verifies that no V2.0 code imports it.
 
 ---
 

@@ -13,6 +13,8 @@ Searchable archive of past RUPP senior projects: topic search, senior lookup, po
 5. [`implementation/README.md`](implementation/README.md) — the implementation handbook.
 6. [`implementation/tasks/README.md`](implementation/tasks/README.md) — the active task board.
 7. [`implementation/spec/PHASES.md`](implementation/spec/PHASES.md) — phase goals and exit gates.
+8. [`CLAUDE.md`](CLAUDE.md) — instructions for Claude Code.
+9. [`.agents/skills/README.md`](.agents/skills/README.md) — project-specific coding skills.
 
 **Next action:** `implementation/tasks/T0.1-product-scope-decision-adr.md`.
 
@@ -39,6 +41,8 @@ Searchable archive of past RUPP senior projects: topic search, senior lookup, po
 ├── tests/                        # unit, integration, fixtures
 ├── docs/                         # product specs, comparison, ADRs
 ├── implementation/               # task cards, shared specs, done cards
+├── .agents/skills/               # project-specific coding-agent skills
+├── CLAUDE.md                     # Claude Code project instructions
 └── legacy/dse-curriculum/        # pulled DSE assistant, reference only
 ```
 

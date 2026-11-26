@@ -6,7 +6,7 @@ Active task cards. One task per file. A task is small enough to implement, test,
 
 1. Pick the lowest-numbered unblocked task.
 2. Read the card, its **Spec**, and the shared contracts in `../spec/`.
-3. Branch: `git switch -c task/T0.1-...`
+3. Branch from `refactored`: `git switch -c task/T0.1-...`
 4. Implement only the files in the card.
 5. Write the tests named in the card.
 6. Commit: `feat(T<id>): <summary>`.
