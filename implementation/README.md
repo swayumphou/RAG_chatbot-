@@ -190,6 +190,7 @@ Environment variables:
 | `TELEGRAM_BOT_TOKEN` | — | BotFather token |
 | `KB_SALT` | — | Salt for hashed Telegram IDs |
 | `KB_COLLECTION` | `rupp_senior_projects_v1` | Qdrant collection |
+| `LOG_LEVEL` | `INFO` | DEBUG / INFO / WARNING / ERROR / CRITICAL |
 
 ---
 

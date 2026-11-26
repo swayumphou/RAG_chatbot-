@@ -23,7 +23,7 @@ Active task cards. One task per file. A task is small enough to implement, test,
 |---|---|---|---|---|
 | T0.1 | [Product-scope decision ADR](T0.1-product-scope-decision-adr.md) | 0 - Scope and Foundations | none | TODO |
 | T0.2 | [Verify the initialized skeleton and branch](T0.2-v2-0-branch-and-package-skeleton.md) | 0 - Scope and Foundations | T0.1 | TODO |
-| T0.3 | [Environment and tooling baseline](T0.3-environment-and-tooling-baseline.md) | 0 - Scope and Foundations | T0.2 | TODO |
+| T0.3 | [Environment and tooling baseline](T0.3-environment-and-tooling-baseline.md) | 0 - Scope and Foundations | T0.2 | IN PROGRESS |
 | T1.1 | [Seniors manifest fixture](T1.1-seniors-manifest-fixture.md) | 1 - Data Model and Manifest | T0.3 | TODO |
 | T1.2 | [Projects manifest fixture](T1.2-projects-manifest-fixture.md) | 1 - Data Model and Manifest | T1.1 | TODO |
 | T1.3 | [Corpus fixture set](T1.3-corpus-fixture-set.md) | 1 - Data Model and Manifest | T1.2 | TODO |
@@ -70,8 +70,8 @@ Active task cards. One task per file. A task is small enough to implement, test,
 | T6.5 | [Training-pair exporter](T6.5-training-pair-exporter.md) | 6 - Evaluation and Training-Pair Flywheel | T6.4 | TODO |
 | T6.6 | [CI regression gate](T6.6-ci-regression-gate.md) | 6 - Evaluation and Training-Pair Flywheel | T6.3, T6.5 | TODO |
 | T7.1 | [Dockerfile and Compose stack](T7.1-dockerfile-and-compose-stack.md) | 7 - Deployment, Configuration, and Observability | T2.9, T6.3 | TODO |
-| T7.2 | [Configuration and secrets](T7.2-configuration-and-secrets.md) | 7 - Deployment, Configuration, and Observability | T0.3 | TODO |
-| T7.3 | [Observability](T7.3-observability.md) | 7 - Deployment, Configuration, and Observability | T4.4, T5.7, T6.4 | TODO |
+| T7.2 | [Configuration and secrets](T7.2-configuration-and-secrets.md) | 7 - Deployment, Configuration, and Observability | T0.3 | IN PROGRESS |
+| T7.3 | [Observability](T7.3-observability.md) | 7 - Deployment, Configuration, and Observability | T4.4, T5.7, T6.4 | IN PROGRESS |
 | T7.4 | [Pre-demo health check](T7.4-pre-demo-health-check.md) | 7 - Deployment, Configuration, and Observability | T7.1–T7.3, T6.3 | TODO |
 | T7.5 | [CI pipeline](T7.5-ci-pipeline.md) | 7 - Deployment, Configuration, and Observability | T6.6, T7.3 | TODO |
 | T8.1 | [Verify the web app quarantine](T8.1-remove-or-quarantine-the-web-app.md) | 8 - Retire the Reference Product | T5.9 | TODO |

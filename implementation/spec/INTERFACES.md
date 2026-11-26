@@ -486,6 +486,7 @@ Every payload must be ≤ 64 bytes. Long candidate lists live in `bot/state.py`,
 | `MIN_SEND_GAP` | 1.0 s |
 | `DEDUPE_SECONDS` | 30 |
 | `STATE_TTL` | 600 s |
+| `LOG_LEVEL` | `INFO` (DEBUG / INFO / WARNING / ERROR / CRITICAL) |
 
 Environment variables are in `implementation/README.md` §6.
 
