@@ -1,0 +1,59 @@
+# RUPP-SPKB v2.0 runtime dependencies (Python 3.11).
+#
+# Install into a fresh virtual environment:
+#
+#     python -m venv .venv
+#     .\.venv\Scripts\Activate.ps1
+#     python -m pip install --upgrade pip
+#     python -m pip install -r requirements.txt
+#
+# Dev tools (pytest, pytest-asyncio, pytest-cov, ruff, black) are pinned in the
+# `dev` extra in pyproject.toml:
+#
+#     python -m pip install -e ".[dev]"
+#
+# Versions are pinned. The pins below follow the compatibility baseline in
+# legacy/dse-curriculum/requirements.txt where that baseline still applies;
+# they are not imported from the legacy package tree.
+#
+# FlagEmbedding pulls PyTorch and is the spec-default embedding runtime. If
+# PyTorch is blocked on the demo machine, do not silently swap it: see
+# docs/adr/ and implementation/README.md ruling #3 (ADR-002 must approve a
+# fallback that still produces bge-m3 sparse lexical weights).
+#
+# OCR additionally needs the Tesseract binary on PATH; pytesseract is only the
+# Python wrapper. Install Tesseract separately (for example `winget install
+# UB-Mannheim.TesseractOCR`) and set TESSERACT_CMD only if it is not on PATH.
+
+# --- LangChain orchestration -------------------------------------------------
+langchain==1.5.2
+langchain-core==1.8.5
+langchain-text-splitters==1.2.0
+# langchain-qdrant 1.2.x requires qdrant-client<1.16; the V2.0 contract needs
+# qdrant-client 1.20.x, so this pair is intentional.
+langchain-qdrant==1.1.0
+qdrant-client==1.20.0
+
+# --- Embeddings --------------------------------------------------------------
+FlagEmbedding==1.4.2
+
+# --- Retrieval helpers -------------------------------------------------------
+rapidfuzz==3.14.6
+khmer-nltk==1.6
+
+# --- Document parsing and OCR ------------------------------------------------
+pymupdf==1.28.2
+python-docx==1.2.0
+python-pptx==1.0.2
+pytesseract==0.3.13
+Pillow==13.0.0
+
+# --- Telegram and HTTP -------------------------------------------------------
+python-telegram-bot==22.8
+httpx==0.28.1
+
+# --- Evaluation and tabular reports -----------------------------------------
+pandas==3.1.1
+# numpy 2.5.x requires Python 3.12+; 2.3.5 is the newest line that supports the
+# Python 3.11 target and satisfies qdrant-client and pandas.
+numpy==2.3.5
