@@ -39,7 +39,7 @@ from ingestion.parsers import parse_document
 from ingestion.validate_manifest import ValidationReport, project_documents, validate_manifest
 from ingestion.verify import IntegrityError, assert_run_integrity
 from logging_config import write_ingest_report
-from store.db import DEFAULT_DB_PATH, DB
+from store.db import DB, DEFAULT_DB_PATH
 
 ROOT = Path(__file__).resolve().parent.parent
 

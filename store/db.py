@@ -418,8 +418,7 @@ class DB:
     def projects_for_senior(self, senior_id) -> list[dict]:
         """All granted projects of one senior, newest first."""
         rows = self.rows(
-            self.PROJECT_SELECT
-            + " JOIN authorship a ON a.project_id = p.project_id"
+            self.PROJECT_SELECT + " JOIN authorship a ON a.project_id = p.project_id"
             " WHERE a.senior_id = ? AND p.permission = 'granted'"
             " ORDER BY p.year DESC, p.project_id DESC",
             (senior_id,),

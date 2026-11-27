@@ -14,7 +14,7 @@ import argparse
 import sys
 
 from answer.consent import CONSENT_DENIED
-from answer.service import answer
+from answer.service import answer, log_result
 
 LOW_CONFIDENCE = "(low confidence)"
 
@@ -100,6 +100,7 @@ def main(argv=None, answer_fn=None, resources=None) -> int:
     except Exception as error:  # show a readable message, never a traceback
         print(f"Error: {error}", file=sys.stderr)
         return 1
+    log_result(db, result, surface="cli")  # never fails the command (T6.4)
     print(render(result))
     return 0
 
@@ -109,7 +110,7 @@ def open_resources(args):
     from config import get_config
     from ingestion.embedder import Embedder
     from ingestion.indexer import connect_qdrant, count_points
-    from store.db import DEFAULT_DB_PATH, DB
+    from store.db import DB, DEFAULT_DB_PATH
 
     config = get_config()
     db = DB(args.db or DEFAULT_DB_PATH)

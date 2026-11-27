@@ -15,7 +15,7 @@ import argparse
 import sys
 
 from ingestion.indexer import collection_name, connect_qdrant, count_points, scroll_all
-from store.db import DEFAULT_DB_PATH, DB
+from store.db import DB, DEFAULT_DB_PATH
 
 REQUIRED_KEYS = (
     "project_id", "senior_ids", "doc_id", "doc_type", "page_number", "year", "program", "text",

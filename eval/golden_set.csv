@@ -1,1 +1,91 @@
 query_id,query,slice,expected_project_ids,expected_senior_id,notes
+t01,khmer handwriting recognition,topic_en,dse2024-001,,handwriting
+t02,optical character recognition for khmer script,topic_en,dse2024-001|dse2024-002,,ocr; 002 needs Tesseract at ingestion
+t03,tesseract fine-tuning character accuracy,topic_en,dse2024-001,,results section
+t04,segmenting handwritten forms into lines and characters,topic_en,dse2024-001,,method
+t05,khmer ocr,topic_en,dse2024-001|dse2024-002,,short query
+t06,stacked consonants segmentation,topic_en,dse2024-001,,rare words
+t07,reading scanned paper forms,topic_en,dse2024-001|dse2024-002,,paraphrase
+t08,image preprocessing grayscale median filter,topic_en,dse2024-001,,slides
+t09,vowel signs recognition errors,topic_en,dse2024-001,,results section
+t10,study room booking web application,topic_en,dse2024-003,,booking
+t11,campus library reservation system,topic_en,dse2024-003,,paraphrase
+t12,reserve a room online,topic_en,dse2024-003,,paraphrase
+t13,librarian approves bookings,topic_en,dse2024-003,,abstract
+t14,daily room usage dashboard,topic_en,dse2024-003,,abstract
+t15,database tables for room bookings,topic_en,dse2024-003,,docx table
+t16,khmer news classification,topic_en,dse2024-004,,news
+t17,classify news articles into topics,topic_en,dse2024-004,,paraphrase
+t18,khmer word segmentation with khmer-nltk,topic_en,dse2024-004,,library name
+t19,linear classifier on word count features,topic_en,dse2024-004,,methods
+t20,text classification of sport economy and politics,topic_en,dse2024-004,,abstract
+t21,natural language processing for khmer text,topic_en,dse2024-004,,domain
+t22,who built a khmer ocr system,topic_en,dse2024-001|dse2024-002,,question (ANSWER route)
+t23,has anyone worked on news topic classification,topic_en,dse2024-004,,question (ANSWER route)
+t24,is there a project about library room booking,topic_en,dse2024-003,,question (ANSWER route)
+t25,machine learning on khmer text,topic_en,dse2024-004|dse2024-001,,broad
+k01,ការសម្គាល់អក្សរខ្មែរ,topic_km,dse2024-001|dse2024-002,,khmer character recognition
+k02,ការសម្គាល់ការសរសេរដោយដៃ,topic_km,dse2024-001,,handwriting recognition
+k03,ការចាត់ថ្នាក់ព័ត៌មានខ្មែរ,topic_km,dse2024-004,,khmer news classification
+k04,ចាត់ថ្នាក់ប្រធានបទព័ត៌មាន,topic_km,dse2024-004,,classify news topics
+k05,ប្រព័ន្ធកក់បន្ទប់បណ្ណាល័យ,topic_km,dse2024-003,,library room booking system
+k06,កក់បន្ទប់សិក្សា,topic_km,dse2024-003,,book a study room
+k07,បណ្ណាល័យ,topic_km,dse2024-003,,library
+k08,អក្សរខ្មែរ OCR,topic_km,dse2024-001|dse2024-002,,mixed Khmer and Latin
+k09,ការបំបែកពាក្យខ្មែរ,topic_km,dse2024-004,,khmer word segmentation
+k10,ការទទួលស្គាល់អត្ថបទ,topic_km,dse2024-001|dse2024-002,,text recognition
+n01,Sok Dara,name_latin,dse2024-004|dse2024-001,s-2024-014,exact
+n02,sok dara,name_latin,dse2024-004|dse2024-001,s-2024-014,lower case
+n03,DARA Sok,name_latin,dse2024-004|dse2024-001,s-2024-014,alias order
+n04,Chan Sreyneang,name_latin,dse2024-006|dse2024-001,s-2024-021,exact
+n05,chan sreyneang,name_latin,dse2024-006|dse2024-001,s-2024-021,lower case
+n06,Sreyneang Chan,name_latin,dse2024-006|dse2024-001,s-2024-021,alias order
+n07,Lim Vuthy,name_latin,dse2024-005,s-2024-052,exact; metadata-only senior
+n08,lim vuthy,name_latin,dse2024-005,s-2024-052,lower case
+n09,LIM VUTHY,name_latin,dse2024-005,s-2024-052,upper case
+n10,Dara Sok,name_latin,dse2024-004|dse2024-001,s-2024-014,alias order
+y01,sokdaraa,name_typo,dse2024-004|dse2024-001,s-2024-014,typo alias
+y02,sok daraa,name_typo,dse2024-004|dse2024-001,s-2024-014,fuzzy
+y03,sok darra,name_typo,dse2024-004|dse2024-001,s-2024-014,fuzzy
+y04,chan sreynang,name_typo,dse2024-006|dse2024-001,s-2024-021,fuzzy
+y05,chan sreyneng,name_typo,dse2024-006|dse2024-001,s-2024-021,fuzzy
+y06,lim vuthyy,name_typo,dse2024-005,s-2024-052,fuzzy
+y07,lim vutthy,name_typo,dse2024-005,s-2024-052,fuzzy
+y08,chan sreyneangg,name_typo,dse2024-006|dse2024-001,s-2024-021,fuzzy
+h01,សុខ ដារា,name_khmer,dse2024-004|dse2024-001,s-2024-014,khmer alias
+h02,ចាន់ ស្រីនាង,name_khmer,dse2024-006|dse2024-001,s-2024-021,khmer alias
+h03,លឹម វុទ្ធី,name_khmer,dse2024-005,s-2024-052,khmer alias
+h04,ដារា សុខ,name_khmer,dse2024-004|dse2024-001,s-2024-014,reversed order
+h05,ស្រីនាង ចាន់,name_khmer,dse2024-006|dse2024-001,s-2024-021,reversed order
+h06,វុទ្ធី លឹម,name_khmer,dse2024-005,s-2024-052,reversed order
+h07,លឹម វុទ្ធី ITE,name_khmer,dse2024-005,s-2024-052,name with program
+f01,2024,facet,dse2024-001|dse2024-002|dse2024-003|dse2024-004|dse2024-005|dse2024-006,,year
+f02,DSE 2024,facet,dse2024-001|dse2024-002|dse2024-004|dse2024-006,,program and year
+f03,ITE 2024,facet,dse2024-003|dse2024-005,,program and year
+f04,DSE,facet,dse2024-001|dse2024-002|dse2024-004|dse2024-006,,program
+f05,ITE,facet,dse2024-003|dse2024-005,,program
+f06,2024 DSE,facet,dse2024-001|dse2024-002|dse2024-004|dse2024-006,,year first
+f07,2024 ITE,facet,dse2024-003|dse2024-005,,year first
+f08,DSE projects 2024,facet,dse2024-001|dse2024-002|dse2024-004|dse2024-006,,with filler word
+f09,ITE projects,facet,dse2024-003|dse2024-005,,with filler word
+f10,projects 2024,facet,dse2024-001|dse2024-002|dse2024-003|dse2024-004|dse2024-005|dse2024-006,,with filler word
+x01,quantum computing lab schedule,negative,,,must abstain
+x02,cafeteria lunch menu this week,negative,,,must abstain
+x03,how to apply for a student visa,negative,,,must abstain
+x04,football match results,negative,,,must abstain
+x05,blockchain cryptocurrency trading bot,negative,,,must abstain
+x06,recipe for chocolate cake,negative,,,must abstain
+x07,weather forecast for tomorrow,negative,,,must abstain
+x08,tuition fee payment deadline,negative,,,must abstain
+x09,parking permit for motorbikes,negative,,,must abstain
+x10,who won the world cup,negative,,,must abstain (question)
+x11,bitcoin price prediction,negative,,,must abstain
+x12,dormitory room rental prices,negative,,,must abstain
+x13,guitar lessons for beginners,negative,,,must abstain
+x14,volcano eruption simulation,negative,,,must abstain
+x15,stock market history,negative,,,must abstain
+x16,mobile game with dragons,negative,,,must abstain
+x17,wedding photography tips,negative,,,must abstain
+x18,coral reef marine biology survey,negative,,,must abstain
+x19,car engine repair manual,negative,,,must abstain
+x20,piano concert tickets,negative,,,must abstain

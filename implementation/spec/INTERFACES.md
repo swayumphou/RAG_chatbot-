@@ -438,6 +438,9 @@ def validate_citations(text: str, citations: list[Citation]) -> bool: ...
 | `AnswerResult.facets`, `AnswerResult.facet_counts` | `FACET_BROWSE` returns the active filters and the SQLite `GROUP BY` counts (T4.1, T5.6). |
 | `AnswerResult.query` | The raw query, needed by the LLM prompt and the query log. |
 | `answer(..., *, collection=None)` | Tests use a temporary Qdrant collection; the default is `KB_COLLECTION`. |
+| `answer(..., *, intent=None, senior_id=None, project_id=None, facets=None)` | Bot entry points ([ADR-005](../../docs/adr/ADR-005-bot-service-entry-points.md)): `intent` skips the router (`/senior`, `/year`); `senior_id` opens a portfolio (`pick`, `Portfolio`, `senior_<id>`); `project_id` opens one project from SQLite (`Abstract`, `proj_<id>`); `facets` applies chips (`{}` = Clear all). Handlers still make exactly one `answer()` call. |
+| `AnswerResult.mode` also `"project"`, `route` also `"PROJECT"` | Result of `project_id=`: one `Citation` built from SQLite (manifest abstract, `page_number=0`, `matched_by="manifest"`). |
+| `PROJECT_NOT_FOUND = "No indexed project with that ID."` | `answer` text for an unknown `project_id` (T5.6). |
 | `route == "MULTI_INTENT"`, `answer` holds the empty-intersection note | T3.7: `None of <name>'s indexed projects matched '<topic>'.` |
 
 ### 5.4 Telegram
@@ -455,6 +458,8 @@ class ChatThrottle:
 
 `project_card` must escape titles and snippets with `html.escape(..., quote=False)` before adding tags.
 
+**Additions made during implementation:** `bot/format.py` also has `portfolio_page(portfolio, page, can_relay)` (one message of a portfolio, with `Next ▶` and the relay button), `abstract_card(citation)`, `candidate_keyboard(name, candidates, key)`, `facet_header(facets, counts)`, and `SEND_OPTIONS` (`parse_mode="HTML"`, link previews off via `LinkPreviewOptions`). A project with several authors gets one portfolio button per author (T5.4). `bot/sender.py` also has `RecentReplies` (the 30 s duplicate cache, T5.7).
+
 ### 5.5 Bot state
 
 ```python
@@ -468,9 +473,12 @@ class PagerState:
     query_id: str
     page: int
     created_at: float
+    citations: list = field(default_factory=list)  # addition: the result cards, so Next needs no new search
 ```
 
 TTL: 600 seconds. Maximum 500 entries. Expired callback → reprompt with the original query.
+
+`put_pager(query_id, page, citations=())` returns a short key; the bot keeps the chat's latest key in `chat_data["pager"]`, because `pg:<project_id>:<page>` carries no key. An expired key asks the user to search again (the original query is gone with the state).
 
 ### 5.6 Callback data
 
@@ -482,6 +490,9 @@ TTL: 600 seconds. Maximum 500 entries. Expired callback → reprompt with the or
 | `pick` | `pick:<state_key>:<index>` | `pick:7f2a:0` | Ambiguity |
 | `rate` | `rate:<query_id>:<1\|-1>` | `rate:<uuid>:1` | Feedback |
 | `relay` | `relay:<senior_id>` | `relay:s-2024-014` | Contact relay |
+| `pf` (page) | `pf:<senior_id>:<page>` | `pf:s-2024-014:1` | Next portfolio page (T5.4) — addition |
+| `fc` | `fc:<encode_facets(...)>` | `fc:year=2024&program=DSE` | Facet chip; `fc:` = Clear all (T5.6) — addition |
+| `rr` | `rr:<relay_id>` | `rr:3f9a1c2e4b5d` | Senior's Reply to a relayed message (T5.8) — addition |
 
 Every payload must be ≤ 64 bytes. Long candidate lists live in `bot/state.py`, not in callback data.
 

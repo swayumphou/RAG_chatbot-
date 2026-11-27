@@ -56,7 +56,7 @@ def strip_breadcrumb(text: str) -> str:
 
 
 def cosine(a, b) -> float:
-    dot = sum(x * y for x, y in zip(a, b))
+    dot = sum(x * y for x, y in zip(a, b, strict=True))
     norm = math.sqrt(sum(x * x for x in a)) * math.sqrt(sum(y * y for y in b))
     if norm == 0:
         return 0.0

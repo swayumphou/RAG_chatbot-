@@ -110,6 +110,14 @@ def test_year_facet_query(db):
     assert routed.programs == ("DSE",)
 
 
+def test_all_programs_are_accepted(db):
+    """T8.2: every RUPP program is a facet; the old DSE-only refusal is gone."""
+    for program in ("DSE", "ITE", "TEE", "BE", "FTCE"):
+        routed = route(f"{program} 2024", db)
+        assert routed.intent == "FACET_BROWSE", program
+        assert routed.programs == (program,)
+
+
 def test_known_khmer_name_is_senior_lookup(db):
     routed = route("សុខ ដារា", db)
     assert routed.intent == "SENIOR_LOOKUP"

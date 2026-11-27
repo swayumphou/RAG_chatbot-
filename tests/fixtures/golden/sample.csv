@@ -1,1 +1,8 @@
 query_id,query,slice,expected_project_ids,expected_senior_id,notes
+t01,khmer handwriting recognition,topic_en,dse2024-001,,one per slice
+k01,ការសម្គាល់អក្សរខ្មែរ,topic_km,dse2024-001|dse2024-002,,one per slice
+n01,Sok Dara,name_latin,dse2024-004|dse2024-001,s-2024-014,one per slice
+y01,sokdaraa,name_typo,dse2024-004|dse2024-001,s-2024-014,one per slice
+h01,សុខ ដារា,name_khmer,dse2024-004|dse2024-001,s-2024-014,one per slice
+f01,ITE 2024,facet,dse2024-003|dse2024-005,,one per slice
+x01,quantum computing lab schedule,negative,,,must abstain

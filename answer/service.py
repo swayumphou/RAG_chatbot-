@@ -19,8 +19,9 @@ Modes of the result:
   extractive_fallback Gemma failed or cited something invented -> passages instead
   abstain             nothing relevant enough; the LLM was NOT called
   portfolio           one senior's portfolio
+  project             one project by ID, from SQLite (bot Abstract button / deep link)
   ambiguous           several seniors match the name; the user must choose
-  not_found           no senior with that name
+  not_found           no senior (or project) with that name or ID
 """
 
 from __future__ import annotations
@@ -28,7 +29,7 @@ from __future__ import annotations
 import logging
 import time
 import uuid
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass, field, replace
 
 from qdrant_client import models
 
@@ -50,6 +51,9 @@ ABSTAIN = (
     "a senior's name, or a year filter."
 )
 NOT_FOUND = "No senior with that name in the indexed cohort."
+PROJECT_NOT_FOUND = "No indexed project with that ID."
+
+INTENTS = ("TOPIC_SEARCH", "SENIOR_LOOKUP", "PORTFOLIO", "FACET_BROWSE", "ANSWER")
 
 
 @dataclass(frozen=True)
@@ -218,16 +222,61 @@ def name_path(result, routed, ctx: Context):
     return result
 
 
-def facet_path(result, routed, ctx: Context):
+def facet_path(result, routed, ctx: Context, facets):
     """FACET_BROWSE: filtered hybrid search in Qdrant + corpus counts from SQLite GROUP BY."""
-    facets = {"year": list(routed.years), "program": list(routed.programs)}
     facets = {key: value for key, value in facets.items() if as_list(value)}
+    result.route = result.intent = "FACET_BROWSE"
     result.mode = "extractive"
     result.facets = facets
     result.facet_counts = facet_counts(ctx.db, facets)
     # The filter goes INTO the search, so Qdrant filters before ranking.
-    result.projects = search(ctx, routed.lexical, build_facet_filter(facets))
+    # A facet chip has no typed text, so the facet values are the search text.
+    words = [str(v) for value in facets.values() for v in as_list(value)]
+    text = routed.lexical or " ".join(words)
+    result.projects = search(ctx, text, build_facet_filter(facets))
     result.citations = make_citations(result.projects, ctx.db)
+    return result
+
+
+def senior_path(result, senior_id, ctx: Context):
+    """A portfolio by senior_id (bot: candidate pick, Portfolio button, senior_<id> link)."""
+    result.route = result.intent = "PORTFOLIO"
+    try:
+        result.portfolio = portfolio(ctx.db, senior_id)
+    except LookupError:  # unknown or withdrawn senior
+        result.mode = "not_found"
+        result.answer = NOT_FOUND
+        return result
+    result.mode = "portfolio"
+    result.resolved_senior = senior_id
+    return result
+
+
+def project_path(result, project_id, ctx: Context):
+    """One project by project_id, from SQLite only (bot: Abstract button, proj_<id> link)."""
+    result.route = result.intent = "PROJECT"
+    row = ctx.db.get_project(project_id)
+    if row is None:  # unknown, pending, or removed project
+        result.mode = "not_found"
+        result.answer = PROJECT_NOT_FOUND
+        return result
+    result.mode = "project"
+    result.citations = [
+        Citation(
+            project_id=row["project_id"],
+            title=row["title_en"],
+            senior_ids=tuple(row["senior_ids"]),
+            page_number=0,  # the manifest abstract has no page
+            snippet=row["abstract"],
+            matched_by="manifest",
+            score=0.0,
+            authors=tuple(ctx.db.senior_names(row["senior_ids"])),
+            year=row["year"],
+            program=row["program"],
+            supervisor_id=row["supervisor_id"] or "",
+            repo_url=row.get("repo_url"),
+        )
+    ]
     return result
 
 
@@ -286,15 +335,30 @@ def answer(
     abstain_threshold=ABSTAIN_THRESHOLD,
     enable_llm=False,
     *,
+    intent=None,
+    senior_id=None,
+    project_id=None,
+    facets=None,
     collection=None,
 ) -> AnswerResult:
     """Answer one query. Raises RetrievalUnavailable when a search needs Qdrant and it is down.
 
+    Optional entry points for the Telegram bot (ADR-005), at most one at a time:
+      intent="SENIOR_LOOKUP"  /senior <name>: treat the text as a name, skip routing
+      senior_id="s-..."       open that senior's portfolio
+      project_id="dse..."     open that project (from SQLite)
+      facets={...}            facet chips; {} means "Clear all"
     `collection` is only for tests that use a temporary Qdrant collection.
     """
+    if intent is not None and intent not in INTENTS:
+        raise ValueError(f"unknown intent: {intent}")
     start = time.perf_counter()
     query = (query or "").strip()
     routed = route(query, db)
+    if intent is not None:
+        # The caller already knows the intent (for example /senior), so the router is skipped.
+        name_span = routed.normalized if intent in ("SENIOR_LOOKUP", "PORTFOLIO") else None
+        routed = replace(routed, intent=intent, name_span=name_span or routed.name_span)
 
     result = AnswerResult(
         query_id=str(uuid.uuid4()),
@@ -312,16 +376,23 @@ def answer(
         query=query,
     )
     ctx = Context(client, embedder, db, abstain_threshold, enable_llm, collection)
-    multi = decompose_multi_intent(query, db)
+    multi = decompose_multi_intent(query, db) if intent is None else None
 
-    if not routed.normalized:
+    if senior_id is not None:
+        senior_path(result, senior_id, ctx)
+    elif project_id is not None:
+        project_path(result, project_id, ctx)
+    elif facets is not None:
+        facet_path(result, routed, ctx, facets)
+    elif not routed.normalized:
         abstain(result, [])
     elif multi:
         multi_intent_path(result, multi[0], multi[1], ctx)
     elif routed.intent in ("SENIOR_LOOKUP", "PORTFOLIO"):
         name_path(result, routed, ctx)
     elif routed.intent == "FACET_BROWSE":
-        facet_path(result, routed, ctx)
+        routed_facets = {"year": list(routed.years), "program": list(routed.programs)}
+        facet_path(result, routed, ctx, routed_facets)
     else:  # TOPIC_SEARCH and ANSWER
         search_path(result, routed, ctx)
 
@@ -332,3 +403,47 @@ def answer(
         zero_results=result.mode == "abstain" and not result.weak_matches,
     )
     return result
+
+
+# ---------------------------------------------------------------- query log (T6.4)
+
+
+def retrieved_json(result: AnswerResult) -> list[dict]:
+    """[{project_id, rank, score, matched_by}] of what the user was shown."""
+    shown = result.projects or result.weak_matches
+    rows = []
+    for rank, project in enumerate(shown, start=1):
+        rows.append(
+            {
+                "project_id": project.project_id,
+                "rank": rank,
+                "score": round(project.score, 4),
+                "matched_by": project.matched_by,
+            }
+        )
+    return rows
+
+
+def log_result(db, result: AnswerResult, surface="telegram", tg_user_hash=None, tg_message_id=None):
+    """Write one query_log row. Returns False (and logs a warning) if the write fails.
+
+    `tg_user_hash` must already be a salted hash: a raw Telegram id is never logged.
+    No contact field is written: only ids, scores, and the query text.
+    """
+    try:
+        db.log_query(
+            query_id=result.query_id,
+            surface=surface,
+            tg_user_hash=tg_user_hash,
+            tg_message_id=tg_message_id,
+            raw_query=result.query,
+            normalized_query=result.normalized_query,
+            intent=result.intent,
+            resolved_senior=result.resolved_senior,
+            retrieved_json=retrieved_json(result),
+            latency_ms=result.latency_ms,
+        )
+        return True
+    except Exception as error:  # logging must never break the answer
+        logger.warning("query log write failed: %s", error)
+        return False

@@ -1,0 +1,87 @@
+# CI for RUPP-SPKB v2.0 (task T7.5).
+#
+# Secrets: none are needed. The live Telegram bot never runs in CI.
+# Repository variable RUN_EVAL=true turns on the evaluation gate. Leave it off
+# until eval/baseline.json is committed: the gate downloads bge-m3 (~2.3 GB),
+# ingests the fixture corpus into the Qdrant service, and compares the report
+# with the baseline (eval/compare_baseline.py).
+
+name: CI
+
+on:
+  push:
+    branches: [main, refactored]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    services:
+      qdrant:
+        image: qdrant/qdrant:v1.20.0  # same pin as docker-compose.yml
+        ports:
+          - 6333:6333
+
+    env:
+      QDRANT_URL: http://localhost:6333
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install Tesseract (OCR fallback for scanned PDFs)
+        run: sudo apt-get update && sudo apt-get install -y tesseract-ocr tesseract-ocr-khm
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install --extra-index-url https://download.pytorch.org/whl/cpu -r requirements.txt
+          pip install -e ".[dev]"
+
+      - name: Lint
+        run: ruff check .
+
+      - name: Format
+        run: black --check .
+
+      - name: Unit tests
+        run: pytest tests/unit -q
+
+      - name: Integration tests (with the Qdrant service)
+        run: pytest tests/integration -q
+
+      - name: Cache the bge-m3 model
+        if: vars.RUN_EVAL == 'true'
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/huggingface
+          key: hf-bge-m3
+
+      - name: Evaluation gate
+        if: vars.RUN_EVAL == 'true'
+        # Run outside the repository folder: the repo's datasets/ package would
+        # hide the Hugging Face "datasets" library that bge-m3 needs.
+        working-directory: ${{ runner.temp }}
+        run: |
+          REPO="$GITHUB_WORKSPACE"
+          python -m ingestion.run \
+            --projects "$REPO/tests/fixtures/manifest/projects.csv" \
+            --seniors "$REPO/tests/fixtures/manifest/seniors.csv" \
+            --corpus "$REPO/tests/fixtures/corpus" \
+            --db "$RUNNER_TEMP/kb.sqlite3" --rebuild
+          python -m eval.run_eval --golden "$REPO/eval/golden_set.csv" \
+            --db "$RUNNER_TEMP/kb.sqlite3" --report "$REPO/eval/last_report.json"
+          python -m eval.compare_baseline "$REPO/eval/baseline.json" "$REPO/eval/last_report.json"
+
+      - name: Upload the eval report
+        if: always() && vars.RUN_EVAL == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: eval-report
+          path: eval/last_report.json
+          if-no-files-found: ignore

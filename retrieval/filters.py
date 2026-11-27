@@ -30,10 +30,7 @@ def build_facet_filter(facets) -> models.Filter | None:
         if key not in FACET_KEYS:
             raise ValueError(f"unknown facet: {key}")
 
-        if key == "year":
-            values = [int(v) for v in values]
-        else:
-            values = [str(v) for v in values]
+        values = [int(v) for v in values] if key == "year" else [str(v) for v in values]
 
         if key == "tech_stack" or len(values) > 1:
             match = models.MatchAny(any=values)  # any of the listed values
@@ -62,7 +59,7 @@ def encode_facets(facets) -> str:
 
 
 def decode_facets(text: str) -> dict:
-    """"year=2024&program=DSE" -> {"year": 2024, "program": "DSE"}. Unknown keys are ignored."""
+    """Turn "year=2024&program=DSE" into {"year": 2024, "program": "DSE"}. Skips unknown keys."""
     facets = {}
     for key, value in parse_qsl(text or ""):
         if key not in FACET_KEYS or not value:

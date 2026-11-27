@@ -74,10 +74,7 @@ class FakeClient:
 
     def query_points(self, collection_name, **kwargs):
         self.calls.append(kwargs)
-        if kwargs.get("prefetch"):
-            kind = "fused"
-        else:
-            kind = kwargs["using"]
+        kind = "fused" if kwargs.get("prefetch") else kwargs["using"]
         return SimpleNamespace(points=self.lists[kind])
 
 

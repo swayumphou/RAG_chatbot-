@@ -120,7 +120,7 @@ def test_service_dispatch_and_result_shape(db, fake_search):
     def ask(query):
         result = answer(query, NoQdrant(), embedder=None, db=db)
         assert isinstance(result, AnswerResult)
-        assert SPEC_FIELDS <= {f.name for f in dataclasses.fields(result)}
+        assert {f.name for f in dataclasses.fields(result)} >= SPEC_FIELDS
         json.dumps(result.to_dict(), default=str)  # the result can be logged as JSON
         return result
 
@@ -207,7 +207,11 @@ def test_gate_abstains_without_llm(db, monkeypatch, caplog):
 
     with caplog.at_level(logging.INFO, logger="answer.service"):
         result = answer(
-            "who built a Khmer OCR system", NoQdrant(), None, db, abstain_threshold=0.45,
+            "who built a Khmer OCR system",
+            NoQdrant(),
+            None,
+            db,
+            abstain_threshold=0.45,
             enable_llm=True,
         )
 
@@ -459,3 +463,61 @@ def test_cli_does_not_import_telegram():
     run = subprocess.run([sys.executable, "-c", code], cwd=root, capture_output=True, text=True)
     assert run.returncode == 0, run.stderr
     assert run.stdout.strip() == "False"
+
+
+# ---------------------------------------------------------------- ADR-005 bot entry points
+
+
+def test_bot_entry_points(db, fake_search):
+    from answer.service import PROJECT_NOT_FOUND
+
+    def ask(query="", **options):
+        return answer(query, NoQdrant(), None, db, **options)
+
+    # senior_id -> portfolio, without routing or Qdrant.
+    result = ask(senior_id="s-2024-014")
+    assert (result.route, result.mode, result.resolved_senior) == (
+        "PORTFOLIO",
+        "portfolio",
+        "s-2024-014",
+    )
+    for missing in ("s-0000-000", "s-2022-077"):  # unknown and withdrawn
+        assert (ask(senior_id=missing).mode, ask(senior_id=missing).answer) == (
+            "not_found",
+            NOT_FOUND,
+        )
+
+    # project_id -> one citation from SQLite, with the manifest abstract.
+    result = ask(project_id="dse2024-004")
+    assert (result.route, result.mode) == ("PROJECT", "project")
+    [card] = result.citations
+    assert card.title == "Khmer News Topic Classification"
+    assert card.snippet.startswith("This fixture project classifies Khmer news")
+    assert card.repo_url == "https://example.invalid/fixture/khmer-news-classifier"
+    assert card.authors == ("Sok Dara",)
+    for missing in ("dse2024-999", "dse2024-007"):  # unknown and pending (never stored)
+        assert ask(project_id=missing).answer == PROJECT_NOT_FOUND
+
+    # intent="SENIOR_LOOKUP" -> a name lookup even where the router would pick a topic search.
+    assert route_of("Panha", db) == "TOPIC_SEARCH"
+    forced = ask("Panha", intent="SENIOR_LOOKUP")
+    assert (forced.intent, forced.mode) == ("SENIOR_LOOKUP", "not_found")
+    assert fake_search.calls == []  # no search ran
+
+    # facets -> facet browse with that filter; {} = Clear all (no filter, whole corpus counts).
+    chips = ask(facets={"year": 2024, "program": "ITE"})
+    assert (chips.route, chips.facets) == ("FACET_BROWSE", {"year": 2024, "program": "ITE"})
+    assert chips.facet_counts["total"] == 2  # dse2024-003 and the metadata-only dse2024-005
+    assert {c.key for c in fake_search.calls[-1]["flt"].must} == {"year", "program"}
+    cleared = ask(facets={})
+    assert cleared.facets == {} and cleared.facet_counts["total"] == 6
+    assert fake_search.calls[-1]["flt"] is None
+
+    with pytest.raises(ValueError, match="unknown intent"):
+        ask("x", intent="COURSE_LOOKUP")
+
+
+def route_of(text, db):
+    from retrieval.intent import route
+
+    return route(text, db).intent

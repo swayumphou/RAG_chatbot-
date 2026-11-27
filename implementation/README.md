@@ -151,11 +151,11 @@ These apply to every task, even when a card does not repeat them.
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 pip install -r requirements.txt
-pip install pytest ruff black
+pip install -e ".[dev]"            # pytest, ruff, black (pinned in pyproject.toml)
 
-# Models (Ollama)
-ollama pull bge-m3
-ollama pull gemma4:12b-it-qat
+# Models
+# bge-m3 is downloaded from Hugging Face by FlagEmbedding on first use (~2.3 GB).
+ollama pull gemma4:12b-it-qat      # only needed for ENABLE_LLM=true
 
 # Qdrant server
 docker compose up -d qdrant
@@ -241,6 +241,7 @@ The V2.0 documents disagree in a few places. These rulings are binding until a n
 | 12 | `senior_ids` separator | Semicolon-separated in CSV; a list in Python and Qdrant payload. |
 | 13 | T1.5 says an empty corpus folder is an error; T1.2/T1.3/FR-07 need a metadata-only project | Missing folder = error; empty folder = warning (metadata-only). See [ADR-004](../docs/adr/ADR-004-metadata-only-projects.md) (Proposed). |
 | 14 | T1.1/T1.2 say to put fixture rows in `data/*.csv`; CLAUDE.md says `data/*.csv` stay header-only | CLAUDE.md wins: synthetic rows live only in `tests/fixtures/manifest/`; `data/*.csv` stay header-only until real permissioned data arrives. |
+| 15 | The bot needs portfolios/projects by ID, `/senior`, and facet chips, but `answer()` only takes text and handlers may not import retrieval | `answer()` gets keyword-only `intent`, `senior_id`, `project_id`, `facets`. See [ADR-005](../docs/adr/ADR-005-bot-service-entry-points.md) (Accepted). |
 
 If a new conflict appears, write an ADR in `docs/adr/` and link it from this table. Do not silently pick a side.
 
@@ -251,6 +252,7 @@ If a new conflict appears, write an ADR in `docs/adr/` and link it from this tab
 | Term | Meaning |
 |---|---|
 | **Senior** | A RUPP student who authored a past project; the primary person entity. |
+| **Program** | One of `DSE`, `ITE`, `TEE`, `BE`, `FTCE`; every program is accepted (the old DSE-only refusal is retired). |
 | **Project** | A metadata row (`project_id`) plus one or more documents. |
 | **Portfolio** | All indexed projects for one senior, served from SQLite. |
 | **Manifest** | `projects.csv` + `seniors.csv`; the authoritative identity layer. |
@@ -340,6 +342,8 @@ Start from `docs/adr/ADR-TEMPLATE.md`; the folder rules are in `docs/adr/README.
 - Product/scope: `docs/adr/ADR-001-product-scope.md`.
 - Embedding runtime fallback: `docs/adr/ADR-002-embedding-runtime.md` if needed.
 - Golden-set size/threshold: `docs/adr/ADR-003-eval-baseline.md` if the 90-query ruling is changed.
+- Metadata-only projects: `docs/adr/ADR-004-metadata-only-projects.md`.
+- Bot entry points into `answer()`: `docs/adr/ADR-005-bot-service-entry-points.md`.
 - Any new cross-task interface change: update `implementation/spec/INTERFACES.md` first, then the task cards.
 
 A decision that is not written down does not exist for the next engineer.

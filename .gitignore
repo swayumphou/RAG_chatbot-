@@ -16,7 +16,12 @@ index/
 logs/
 data/qdrant/
 data/ollama/
+data/hf_cache/
 eval/last_report.json
+
+# Personal data: the SQLite store (contact fields, query log) and exported training pairs
+data/*.sqlite3
+datasets/training_pairs.jsonl
 
 # Legacy generated files
 legacy/dse-curriculum/index/

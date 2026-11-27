@@ -23,6 +23,8 @@ The V2.0 documents describe a **person-anchored archive of past senior projects*
 
 **Functional-requirement compliance: 0 fully met, 9 partial, 5 missing.**
 
+**Decision:** build V2.0 and keep this code as reference only — see [ADR-001: product scope](adr/ADR-001-product-scope.md).
+
 | Category | Result |
 |---|---|
 | Fully compliant FRs | **0 / 14** |

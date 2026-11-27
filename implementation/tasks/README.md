@@ -21,9 +21,9 @@ Active task cards. One task per file. A task is small enough to implement, test,
 
 | ID | Task | Phase | Depends on | Status |
 |---|---|---|---|---|
-| T0.1 | [Product-scope decision ADR](T0.1-product-scope-decision-adr.md) | 0 - Scope and Foundations | none | TODO |
-| T0.2 | [Verify the initialized skeleton and branch](T0.2-v2-0-branch-and-package-skeleton.md) | 0 - Scope and Foundations | T0.1 | TODO |
-| T0.3 | [Environment and tooling baseline](T0.3-environment-and-tooling-baseline.md) | 0 - Scope and Foundations | T0.2 | IN PROGRESS |
+| T0.1 | [Product-scope decision ADR](T0.1-product-scope-decision-adr.md) | 0 - Scope and Foundations | none | REVIEW |
+| T0.2 | [Verify the initialized skeleton and branch](T0.2-v2-0-branch-and-package-skeleton.md) | 0 - Scope and Foundations | T0.1 | REVIEW |
+| T0.3 | [Environment and tooling baseline](T0.3-environment-and-tooling-baseline.md) | 0 - Scope and Foundations | T0.2 | REVIEW |
 | T1.1 | [Seniors manifest fixture](T1.1-seniors-manifest-fixture.md) | 1 - Data Model and Manifest | T0.3 | REVIEW |
 | T1.2 | [Projects manifest fixture](T1.2-projects-manifest-fixture.md) | 1 - Data Model and Manifest | T1.1 | REVIEW |
 | T1.3 | [Corpus fixture set](T1.3-corpus-fixture-set.md) | 1 - Data Model and Manifest | T1.2 | REVIEW |
@@ -54,29 +54,29 @@ Active task cards. One task per file. A task is small enough to implement, test,
 | T4.5 | [Citation validator and fallback](T4.5-citation-validator-and-fallback.md) | 4 - Extractive-First Answer Layer | T4.4 | REVIEW |
 | T4.6 | [Consent-gated contact card](T4.6-consent-gated-contact-card.md) | 4 - Extractive-First Answer Layer | T1.4, T4.1 | REVIEW |
 | T4.7 | [CLI fallback](T4.7-cli-fallback.md) | 4 - Extractive-First Answer Layer | T4.1 | REVIEW |
-| T5.1 | [Bot bootstrap and private-chat envelope](T5.1-bot-bootstrap-and-private-chat-envelope.md) | 5 - Telegram Interface | T4.7 | TODO |
-| T5.2 | [Commands, plain text, and feedback](T5.2-commands-plain-text-and-feedback.md) | 5 - Telegram Interface | T5.1 | TODO |
-| T5.3 | [Formatter and project cards](T5.3-formatter-and-project-cards.md) | 5 - Telegram Interface | T5.2 | TODO |
-| T5.4 | [Portfolio rendering and pagination](T5.4-portfolio-rendering-and-pagination.md) | 5 - Telegram Interface | T3.6, T5.3 | TODO |
-| T5.5 | [Callback state and ambiguity keyboard](T5.5-callback-state-and-ambiguity-keyboard.md) | 5 - Telegram Interface | T5.3, T3.5 | TODO |
-| T5.6 | [Deep links and facet chips](T5.6-deep-links-and-facet-chips.md) | 5 - Telegram Interface | T3.4, T5.2 | TODO |
-| T5.7 | [Sender throttle, 429, and duplicate cache](T5.7-sender-throttle-429-and-duplicate-cache.md) | 5 - Telegram Interface | T5.3 | TODO |
-| T5.8 | [Consent-gated relay](T5.8-consent-gated-relay.md) | 5 - Telegram Interface | T4.6, T5.1 | TODO |
-| T5.9 | [Bot integration tests](T5.9-bot-integration-tests.md) | 5 - Telegram Interface | T5.1–T5.8 | TODO |
-| T6.1 | [Golden set schema and slices](T6.1-golden-set-schema-and-slices.md) | 6 - Evaluation and Training-Pair Flywheel | T5.9 | TODO |
-| T6.2 | [Metrics library](T6.2-metrics-library.md) | 6 - Evaluation and Training-Pair Flywheel | T6.1 | TODO |
-| T6.3 | [Evaluation runner, threshold sweep, and baseline](T6.3-evaluation-runner-threshold-sweep-and-baseline.md) | 6 - Evaluation and Training-Pair Flywheel | T6.2, T4.2 | TODO |
-| T6.4 | [Query logging and click tracking](T6.4-query-logging-and-click-tracking.md) | 6 - Evaluation and Training-Pair Flywheel | T5.2, T1.4 | TODO |
-| T6.5 | [Training-pair exporter](T6.5-training-pair-exporter.md) | 6 - Evaluation and Training-Pair Flywheel | T6.4 | TODO |
-| T6.6 | [CI regression gate](T6.6-ci-regression-gate.md) | 6 - Evaluation and Training-Pair Flywheel | T6.3, T6.5 | TODO |
-| T7.1 | [Dockerfile and Compose stack](T7.1-dockerfile-and-compose-stack.md) | 7 - Deployment, Configuration, and Observability | T2.9, T6.3 | TODO |
-| T7.2 | [Configuration and secrets](T7.2-configuration-and-secrets.md) | 7 - Deployment, Configuration, and Observability | T0.3 | IN PROGRESS |
-| T7.3 | [Observability](T7.3-observability.md) | 7 - Deployment, Configuration, and Observability | T4.4, T5.7, T6.4 | IN PROGRESS |
-| T7.4 | [Pre-demo health check](T7.4-pre-demo-health-check.md) | 7 - Deployment, Configuration, and Observability | T7.1–T7.3, T6.3 | TODO |
-| T7.5 | [CI pipeline](T7.5-ci-pipeline.md) | 7 - Deployment, Configuration, and Observability | T6.6, T7.3 | TODO |
-| T8.1 | [Verify the web app quarantine](T8.1-remove-or-quarantine-the-web-app.md) | 8 - Retire the Reference Product | T5.9 | TODO |
-| T8.2 | [Verify the DSE curriculum quarantine](T8.2-retire-the-dse-curriculum-product.md) | 8 - Retire the Reference Product | T3.8, T4.7 | TODO |
-| T8.3 | [Final layout, dead code, and README](T8.3-final-layout-dead-code-and-readme.md) | 8 - Retire the Reference Product | T8.1, T8.2 | TODO |
+| T5.1 | [Bot bootstrap and private-chat envelope](T5.1-bot-bootstrap-and-private-chat-envelope.md) | 5 - Telegram Interface | T4.7 | REVIEW |
+| T5.2 | [Commands, plain text, and feedback](T5.2-commands-plain-text-and-feedback.md) | 5 - Telegram Interface | T5.1 | REVIEW |
+| T5.3 | [Formatter and project cards](T5.3-formatter-and-project-cards.md) | 5 - Telegram Interface | T5.2 | REVIEW |
+| T5.4 | [Portfolio rendering and pagination](T5.4-portfolio-rendering-and-pagination.md) | 5 - Telegram Interface | T3.6, T5.3 | REVIEW |
+| T5.5 | [Callback state and ambiguity keyboard](T5.5-callback-state-and-ambiguity-keyboard.md) | 5 - Telegram Interface | T5.3, T3.5 | REVIEW |
+| T5.6 | [Deep links and facet chips](T5.6-deep-links-and-facet-chips.md) | 5 - Telegram Interface | T3.4, T5.2 | REVIEW |
+| T5.7 | [Sender throttle, 429, and duplicate cache](T5.7-sender-throttle-429-and-duplicate-cache.md) | 5 - Telegram Interface | T5.3 | REVIEW |
+| T5.8 | [Consent-gated relay](T5.8-consent-gated-relay.md) | 5 - Telegram Interface | T4.6, T5.1 | REVIEW |
+| T5.9 | [Bot integration tests](T5.9-bot-integration-tests.md) | 5 - Telegram Interface | T5.1–T5.8 | REVIEW |
+| T6.1 | [Golden set schema and slices](T6.1-golden-set-schema-and-slices.md) | 6 - Evaluation and Training-Pair Flywheel | T5.9 | REVIEW |
+| T6.2 | [Metrics library](T6.2-metrics-library.md) | 6 - Evaluation and Training-Pair Flywheel | T6.1 | REVIEW |
+| T6.3 | [Evaluation runner, threshold sweep, and baseline](T6.3-evaluation-runner-threshold-sweep-and-baseline.md) | 6 - Evaluation and Training-Pair Flywheel | T6.2, T4.2 | REVIEW |
+| T6.4 | [Query logging and click tracking](T6.4-query-logging-and-click-tracking.md) | 6 - Evaluation and Training-Pair Flywheel | T5.2, T1.4 | REVIEW |
+| T6.5 | [Training-pair exporter](T6.5-training-pair-exporter.md) | 6 - Evaluation and Training-Pair Flywheel | T6.4 | REVIEW |
+| T6.6 | [CI regression gate](T6.6-ci-regression-gate.md) | 6 - Evaluation and Training-Pair Flywheel | T6.3, T6.5 | REVIEW |
+| T7.1 | [Dockerfile and Compose stack](T7.1-dockerfile-and-compose-stack.md) | 7 - Deployment, Configuration, and Observability | T2.9, T6.3 | REVIEW |
+| T7.2 | [Configuration and secrets](T7.2-configuration-and-secrets.md) | 7 - Deployment, Configuration, and Observability | T0.3 | REVIEW |
+| T7.3 | [Observability](T7.3-observability.md) | 7 - Deployment, Configuration, and Observability | T4.4, T5.7, T6.4 | REVIEW |
+| T7.4 | [Pre-demo health check](T7.4-pre-demo-health-check.md) | 7 - Deployment, Configuration, and Observability | T7.1–T7.3, T6.3 | REVIEW |
+| T7.5 | [CI pipeline](T7.5-ci-pipeline.md) | 7 - Deployment, Configuration, and Observability | T6.6, T7.3 | REVIEW |
+| T8.1 | [Verify the web app quarantine](T8.1-remove-or-quarantine-the-web-app.md) | 8 - Retire the Reference Product | T5.9 | REVIEW |
+| T8.2 | [Verify the DSE curriculum quarantine](T8.2-retire-the-dse-curriculum-product.md) | 8 - Retire the Reference Product | T3.8, T4.7 | REVIEW |
+| T8.3 | [Final layout, dead code, and README](T8.3-final-layout-dead-code-and-readme.md) | 8 - Retire the Reference Product | T8.1, T8.2 | REVIEW |
 
 ---
 

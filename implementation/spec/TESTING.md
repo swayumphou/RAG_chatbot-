@@ -285,6 +285,11 @@ pytest tests/integration -q        # only when services are available
 python -m eval.compare_baseline eval/baseline.json eval/last_report.json
 ```
 
+The workflow is `.github/workflows/ci.yml`. The evaluation step runs only when the repository
+variable `RUN_EVAL=true` is set (it downloads bge-m3 and needs a committed `eval/baseline.json`);
+it runs from outside the repository folder because the repo's `datasets/` package would hide the
+Hugging Face `datasets` library.
+
 `compare_baseline` exits non-zero when:
 
 - a slice's nDCG@10 drops > 0.02;

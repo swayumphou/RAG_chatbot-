@@ -27,18 +27,44 @@ SOURCE = LEGACY / "data"
 DEST = ROOT / "data" / "reference" / "dse-curriculum"
 
 PROJECTS_HEADER = [
-    "project_id", "title_en", "title_khmer", "year", "term", "program",
-    "domain", "tech_stack", "keywords", "supervisor_id", "senior_ids",
-    "abstract", "repo_url", "demo_url", "permission",
+    "project_id",
+    "title_en",
+    "title_khmer",
+    "year",
+    "term",
+    "program",
+    "domain",
+    "tech_stack",
+    "keywords",
+    "supervisor_id",
+    "senior_ids",
+    "abstract",
+    "repo_url",
+    "demo_url",
+    "permission",
 ]
 SENIORS_HEADER = [
-    "senior_id", "full_name_latin", "full_name_khmer", "aliases", "program",
-    "cohort_year", "supervisor_id", "contact_email", "github", "linkedin",
-    "consent_public_contact", "consent_relay", "status",
+    "senior_id",
+    "full_name_latin",
+    "full_name_khmer",
+    "aliases",
+    "program",
+    "cohort_year",
+    "supervisor_id",
+    "contact_email",
+    "github",
+    "linkedin",
+    "consent_public_contact",
+    "consent_relay",
+    "status",
 ]
 GOLDEN_HEADER = [
-    "query_id", "query", "slice", "expected_project_ids",
-    "expected_senior_id", "notes",
+    "query_id",
+    "query",
+    "slice",
+    "expected_project_ids",
+    "expected_senior_id",
+    "notes",
 ]
 
 
@@ -62,20 +88,22 @@ def flatten_courses() -> int:
     rows: list[dict] = []
     for program in data.get("programs", []):
         for course in program.get("courses", []):
-            rows.append({
-                "program_id": course.get("program_id", ""),
-                "program_name": course.get("program_name", ""),
-                "academic_year": course.get("academic_year", ""),
-                "semester": course.get("semester", ""),
-                "course_name": course.get("course_name", ""),
-                "credits": course.get("credits", ""),
-                "source_hours": course.get("source_hours") or "",
-                "option": course.get("option") or "",
-                "source_url": course.get("source_url") or "",
-                "retrieved_at": course.get("retrieved_at") or "",
-                "verification_status": course.get("verification_status") or "",
-                "review_notes": "; ".join(course.get("review_notes") or []),
-            })
+            rows.append(
+                {
+                    "program_id": course.get("program_id", ""),
+                    "program_name": course.get("program_name", ""),
+                    "academic_year": course.get("academic_year", ""),
+                    "semester": course.get("semester", ""),
+                    "course_name": course.get("course_name", ""),
+                    "credits": course.get("credits", ""),
+                    "source_hours": course.get("source_hours") or "",
+                    "option": course.get("option") or "",
+                    "source_url": course.get("source_url") or "",
+                    "retrieved_at": course.get("retrieved_at") or "",
+                    "verification_status": course.get("verification_status") or "",
+                    "review_notes": "; ".join(course.get("review_notes") or []),
+                }
+            )
     out = DEST / "courses.csv"
     with out.open("w", encoding="utf-8", newline="") as f:
         writer = csv.DictWriter(f, fieldnames=list(rows[0].keys()) if rows else [])
@@ -106,8 +134,9 @@ def main() -> None:
             copy_file(src, docs / src.name)
 
     # Old curriculum golden set, for reference only.
-    copy_file(LEGACY / "evaluation" / "golden_set.csv",
-              DEST / "evaluation" / "golden_set_curriculum.csv")
+    copy_file(
+        LEGACY / "evaluation" / "golden_set.csv", DEST / "evaluation" / "golden_set_curriculum.csv"
+    )
 
     course_count = flatten_courses()
 
@@ -129,7 +158,7 @@ indexed by the V2.0 pipeline.
 
 | Path | Meaning |
 |---|---|
-| `rupp-dse-degree.json` | The old DSE curriculum snapshot (1 program, {course_count} course records). |
+| `rupp-dse-degree.json` | Old DSE curriculum snapshot (1 program, {course_count} course records). |
 | `courses.csv` | The same {course_count} course records flattened for inspection. |
 | `sources.csv` | The old source registry. |
 | `documents/` | The old PDFs, Markdown guide, and practice slide deck. |
