@@ -1,0 +1,3 @@
+project_id,title_en,title_khmer,year,term,program,domain,tech_stack,keywords,supervisor_id,senior_ids,abstract,repo_url,demo_url,permission
+dse2024-003,Campus Library Booking System,,2024,S2,ITE,Web Systems,Django,booking,sup-002,s-2024-044,"Fixture abstract for a library booking web application.",,,granted
+,No Id Project,,2024,S2,DSE,Web,Python,test,sup-001,s-2024-014,"Fixture row with an empty project_id.",,,granted

@@ -1,1 +1,7 @@
 senior_id,full_name_latin,full_name_khmer,aliases,program,cohort_year,supervisor_id,contact_email,github,linkedin,consent_public_contact,consent_relay,status
+s-2024-014,Sok Dara,សុខ ដារា,Sok Dara;សុខ ដារា;sokdaraa;DARA Sok,DSE,2024,sup-003,,https://example.invalid/fixture/sok-dara-github,https://example.invalid/fixture/sok-dara-linkedin,true,false,active
+s-2024-021,Chan Sreyneang,ចាន់ ស្រីនាង,Chan Sreyneang;Sreyneang Chan,DSE,2024,sup-003,,,,false,true,active
+s-2024-031,Keo Sophea,កែវ សុភា,Keo Sophea,DSE,2024,sup-001,,,,false,false,active
+s-2024-044,Keo Sophea,កែវ សុភា,Keo Sophea,ITE,2024,sup-002,,,,false,false,active
+s-2024-052,Lim Vuthy,លឹម វុទ្ធី,Lim Vuthy,ITE,2024,sup-002,,,,false,false,active
+s-2022-077,Mao Rithy,ម៉ៅ រិទ្ធី,Mao Rithy,DSE,2022,sup-001,,,,false,false,withdrawn

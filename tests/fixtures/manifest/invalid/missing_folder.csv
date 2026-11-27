@@ -1,0 +1,2 @@
+project_id,title_en,title_khmer,year,term,program,domain,tech_stack,keywords,supervisor_id,senior_ids,abstract,repo_url,demo_url,permission
+dse2024-099,Project Without A Folder,,2024,S2,DSE,Web,Python,test,sup-001,s-2024-014,"Fixture row whose corpus folder does not exist.",,,granted

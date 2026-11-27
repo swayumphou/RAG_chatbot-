@@ -239,6 +239,8 @@ The V2.0 documents disagree in a few places. These rulings are binding until a n
 | 10 | `doc_id` examples are inconsistent | Use `f"{project_id}__{filename}"`, e.g. `dse2024-07__report.pdf`. |
 | 11 | Year means cohort year (20xx), not study year (1–4) | `year` is the graduation/cohort year, e.g. 2024. Study year only appears in curriculum text, which is out of scope for V2.0. |
 | 12 | `senior_ids` separator | Semicolon-separated in CSV; a list in Python and Qdrant payload. |
+| 13 | T1.5 says an empty corpus folder is an error; T1.2/T1.3/FR-07 need a metadata-only project | Missing folder = error; empty folder = warning (metadata-only). See [ADR-004](../docs/adr/ADR-004-metadata-only-projects.md) (Proposed). |
+| 14 | T1.1/T1.2 say to put fixture rows in `data/*.csv`; CLAUDE.md says `data/*.csv` stay header-only | CLAUDE.md wins: synthetic rows live only in `tests/fixtures/manifest/`; `data/*.csv` stay header-only until real permissioned data arrives. |
 
 If a new conflict appears, write an ADR in `docs/adr/` and link it from this table. Do not silently pick a side.
 

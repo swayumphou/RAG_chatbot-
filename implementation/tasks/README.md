@@ -24,36 +24,36 @@ Active task cards. One task per file. A task is small enough to implement, test,
 | T0.1 | [Product-scope decision ADR](T0.1-product-scope-decision-adr.md) | 0 - Scope and Foundations | none | TODO |
 | T0.2 | [Verify the initialized skeleton and branch](T0.2-v2-0-branch-and-package-skeleton.md) | 0 - Scope and Foundations | T0.1 | TODO |
 | T0.3 | [Environment and tooling baseline](T0.3-environment-and-tooling-baseline.md) | 0 - Scope and Foundations | T0.2 | IN PROGRESS |
-| T1.1 | [Seniors manifest fixture](T1.1-seniors-manifest-fixture.md) | 1 - Data Model and Manifest | T0.3 | TODO |
-| T1.2 | [Projects manifest fixture](T1.2-projects-manifest-fixture.md) | 1 - Data Model and Manifest | T1.1 | TODO |
-| T1.3 | [Corpus fixture set](T1.3-corpus-fixture-set.md) | 1 - Data Model and Manifest | T1.2 | TODO |
-| T1.4 | [SQLite schema and store API](T1.4-sqlite-schema-and-store-api.md) | 1 - Data Model and Manifest | T1.1, T1.2 | TODO |
-| T1.5 | [Manifest validator](T1.5-manifest-validator.md) | 1 - Data Model and Manifest | T1.4 | TODO |
-| T1.6 | [Manifest diff and validation CLI](T1.6-manifest-diff-and-validation-cli.md) | 1 - Data Model and Manifest | T1.5 | TODO |
-| T2.1 | [Parser contract and registry](T2.1-parser-contract-and-registry.md) | 2 - Project-Aware Ingestion and Indexing | T1.4 | TODO |
-| T2.2 | [PDF parser and OCR fallback](T2.2-pdf-parser-and-ocr-fallback.md) | 2 - Project-Aware Ingestion and Indexing | T2.1 | TODO |
-| T2.3 | [DOCX parser](T2.3-docx-parser.md) | 2 - Project-Aware Ingestion and Indexing | T2.1 | TODO |
-| T2.4 | [PPTX parser](T2.4-pptx-parser.md) | 2 - Project-Aware Ingestion and Indexing | T2.1 | TODO |
-| T2.5 | [Markdown parser](T2.5-markdown-parser.md) | 2 - Project-Aware Ingestion and Indexing | T2.1 | TODO |
-| T2.6 | [Structure-aware chunker](T2.6-structure-aware-chunker.md) | 2 - Project-Aware Ingestion and Indexing | T2.2–T2.5 | TODO |
-| T2.7 | [bge-m3 embedder](T2.7-bge-m3-embedder.md) | 2 - Project-Aware Ingestion and Indexing | T2.6 | TODO |
-| T2.8 | [Qdrant indexer and integrity verifier](T2.8-qdrant-indexer-and-integrity-verifier.md) | 2 - Project-Aware Ingestion and Indexing | T2.7 | TODO |
-| T2.9 | [Ingestion orchestrator and report](T2.9-ingestion-orchestrator-and-report.md) | 2 - Project-Aware Ingestion and Indexing | T1.5, T2.8 | TODO |
-| T3.1 | [Normalization and Khmer segmentation](T3.1-normalization-and-khmer-segmentation.md) | 3 - Five-Intent Retrieval | T1.4 | TODO |
-| T3.2 | [Five-intent router](T3.2-five-intent-router.md) | 3 - Five-Intent Retrieval | T3.1, T1.4 | TODO |
-| T3.3 | [Hybrid retrieval and project grouping](T3.3-hybrid-retrieval-and-project-grouping.md) | 3 - Five-Intent Retrieval | T2.8, T3.1 | TODO |
-| T3.4 | [Qdrant filters and facet counts](T3.4-qdrant-filters-and-facet-counts.md) | 3 - Five-Intent Retrieval | T3.3, T1.4 | TODO |
-| T3.5 | [Senior entity resolution](T3.5-senior-entity-resolution.md) | 3 - Five-Intent Retrieval | T3.1, T1.4, T2.8 | TODO |
-| T3.6 | [Portfolio assembly](T3.6-portfolio-assembly.md) | 3 - Five-Intent Retrieval | T1.4 | TODO |
-| T3.7 | [Multi-intent intersection](T3.7-multi-intent-intersection.md) | 3 - Five-Intent Retrieval | T3.2, T3.3, T3.5 | TODO |
-| T3.8 | [Retrieval integration tests](T3.8-retrieval-integration-tests.md) | 3 - Five-Intent Retrieval | T3.3–T3.7 | TODO |
-| T4.1 | [Answer service contract and dispatch](T4.1-answer-service-contract-and-dispatch.md) | 4 - Extractive-First Answer Layer | T3.8 | TODO |
-| T4.2 | [Relevance gate and abstention](T4.2-relevance-gate-and-abstention.md) | 4 - Extractive-First Answer Layer | T4.1, T3.3 | TODO |
-| T4.3 | [Extractive answer and citations](T4.3-extractive-answer-and-citations.md) | 4 - Extractive-First Answer Layer | T4.2 | TODO |
-| T4.4 | [Gemma 4 synthesis](T4.4-gemma-4-synthesis.md) | 4 - Extractive-First Answer Layer | T4.1 | TODO |
-| T4.5 | [Citation validator and fallback](T4.5-citation-validator-and-fallback.md) | 4 - Extractive-First Answer Layer | T4.4 | TODO |
-| T4.6 | [Consent-gated contact card](T4.6-consent-gated-contact-card.md) | 4 - Extractive-First Answer Layer | T1.4, T4.1 | TODO |
-| T4.7 | [CLI fallback](T4.7-cli-fallback.md) | 4 - Extractive-First Answer Layer | T4.1 | TODO |
+| T1.1 | [Seniors manifest fixture](T1.1-seniors-manifest-fixture.md) | 1 - Data Model and Manifest | T0.3 | REVIEW |
+| T1.2 | [Projects manifest fixture](T1.2-projects-manifest-fixture.md) | 1 - Data Model and Manifest | T1.1 | REVIEW |
+| T1.3 | [Corpus fixture set](T1.3-corpus-fixture-set.md) | 1 - Data Model and Manifest | T1.2 | REVIEW |
+| T1.4 | [SQLite schema and store API](T1.4-sqlite-schema-and-store-api.md) | 1 - Data Model and Manifest | T1.1, T1.2 | REVIEW |
+| T1.5 | [Manifest validator](T1.5-manifest-validator.md) | 1 - Data Model and Manifest | T1.4 | REVIEW |
+| T1.6 | [Manifest diff and validation CLI](T1.6-manifest-diff-and-validation-cli.md) | 1 - Data Model and Manifest | T1.5 | REVIEW |
+| T2.1 | [Parser contract and registry](T2.1-parser-contract-and-registry.md) | 2 - Project-Aware Ingestion and Indexing | T1.4 | REVIEW |
+| T2.2 | [PDF parser and OCR fallback](T2.2-pdf-parser-and-ocr-fallback.md) | 2 - Project-Aware Ingestion and Indexing | T2.1 | REVIEW |
+| T2.3 | [DOCX parser](T2.3-docx-parser.md) | 2 - Project-Aware Ingestion and Indexing | T2.1 | REVIEW |
+| T2.4 | [PPTX parser](T2.4-pptx-parser.md) | 2 - Project-Aware Ingestion and Indexing | T2.1 | REVIEW |
+| T2.5 | [Markdown parser](T2.5-markdown-parser.md) | 2 - Project-Aware Ingestion and Indexing | T2.1 | REVIEW |
+| T2.6 | [Structure-aware chunker](T2.6-structure-aware-chunker.md) | 2 - Project-Aware Ingestion and Indexing | T2.2–T2.5 | REVIEW |
+| T2.7 | [bge-m3 embedder](T2.7-bge-m3-embedder.md) | 2 - Project-Aware Ingestion and Indexing | T2.6 | REVIEW |
+| T2.8 | [Qdrant indexer and integrity verifier](T2.8-qdrant-indexer-and-integrity-verifier.md) | 2 - Project-Aware Ingestion and Indexing | T2.7 | REVIEW |
+| T2.9 | [Ingestion orchestrator and report](T2.9-ingestion-orchestrator-and-report.md) | 2 - Project-Aware Ingestion and Indexing | T1.5, T2.8 | REVIEW |
+| T3.1 | [Normalization and Khmer segmentation](T3.1-normalization-and-khmer-segmentation.md) | 3 - Five-Intent Retrieval | T1.4 | REVIEW |
+| T3.2 | [Five-intent router](T3.2-five-intent-router.md) | 3 - Five-Intent Retrieval | T3.1, T1.4 | REVIEW |
+| T3.3 | [Hybrid retrieval and project grouping](T3.3-hybrid-retrieval-and-project-grouping.md) | 3 - Five-Intent Retrieval | T2.8, T3.1 | REVIEW |
+| T3.4 | [Qdrant filters and facet counts](T3.4-qdrant-filters-and-facet-counts.md) | 3 - Five-Intent Retrieval | T3.3, T1.4 | REVIEW |
+| T3.5 | [Senior entity resolution](T3.5-senior-entity-resolution.md) | 3 - Five-Intent Retrieval | T3.1, T1.4, T2.8 | REVIEW |
+| T3.6 | [Portfolio assembly](T3.6-portfolio-assembly.md) | 3 - Five-Intent Retrieval | T1.4 | REVIEW |
+| T3.7 | [Multi-intent intersection](T3.7-multi-intent-intersection.md) | 3 - Five-Intent Retrieval | T3.2, T3.3, T3.5 | REVIEW |
+| T3.8 | [Retrieval integration tests](T3.8-retrieval-integration-tests.md) | 3 - Five-Intent Retrieval | T3.3–T3.7 | REVIEW |
+| T4.1 | [Answer service contract and dispatch](T4.1-answer-service-contract-and-dispatch.md) | 4 - Extractive-First Answer Layer | T3.8 | REVIEW |
+| T4.2 | [Relevance gate and abstention](T4.2-relevance-gate-and-abstention.md) | 4 - Extractive-First Answer Layer | T4.1, T3.3 | REVIEW |
+| T4.3 | [Extractive answer and citations](T4.3-extractive-answer-and-citations.md) | 4 - Extractive-First Answer Layer | T4.2 | REVIEW |
+| T4.4 | [Gemma 4 synthesis](T4.4-gemma-4-synthesis.md) | 4 - Extractive-First Answer Layer | T4.1 | REVIEW |
+| T4.5 | [Citation validator and fallback](T4.5-citation-validator-and-fallback.md) | 4 - Extractive-First Answer Layer | T4.4 | REVIEW |
+| T4.6 | [Consent-gated contact card](T4.6-consent-gated-contact-card.md) | 4 - Extractive-First Answer Layer | T1.4, T4.1 | REVIEW |
+| T4.7 | [CLI fallback](T4.7-cli-fallback.md) | 4 - Extractive-First Answer Layer | T4.1 | REVIEW |
 | T5.1 | [Bot bootstrap and private-chat envelope](T5.1-bot-bootstrap-and-private-chat-envelope.md) | 5 - Telegram Interface | T4.7 | TODO |
 | T5.2 | [Commands, plain text, and feedback](T5.2-commands-plain-text-and-feedback.md) | 5 - Telegram Interface | T5.1 | TODO |
 | T5.3 | [Formatter and project cards](T5.3-formatter-and-project-cards.md) | 5 - Telegram Interface | T5.2 | TODO |

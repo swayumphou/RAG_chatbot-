@@ -315,6 +315,18 @@ def assert_run_integrity(client: QdrantClient, db: "DB",
 
 `Embedder.encode` returns dense vectors and sparse `(indices, values)` pairs. `indexer` converts the pairs to `models.SparseVector`.
 
+**Additions made during implementation (all optional, backward compatible):**
+
+| Name | Why |
+|---|---|
+| `Page.anchor: str = ""` | DOCX/Markdown use `number=0`; the anchor holds `"section N"` (T2.3, T2.5). PDF uses `"p.N"`, PPTX `"slide N"`. |
+| `validate_manifest(..., previous=None)` | `(projects, seniors)` from the last run (`DB.manifest_snapshot()`), so the diff can report added/updated/removed (T1.6). `report.diff["projects"]["skipped"]` lists pending/withdrawn projects. |
+| `Embedder(..., batch_size=16, model=None)`, `Embedder.encode_query(text)` | Batching (T2.7); `model` lets tests inject a fake. `encode_query` is `encode([text])` for one query. |
+| `collection=None` on `ensure_collection`, `upsert_chunks`, `assert_run_integrity` | Tests use a temporary collection; the default is `KB_COLLECTION`. |
+| `indexer.connect_qdrant(url=None, path=None)` | Server by default; `path` opens embedded Qdrant for smoke tests only. |
+| `indexer.delete_stale_points(client, keep)` | Removes points of projects that became pending/withdrawn and old chunks of changed documents, so a withdrawn senior's chunks disappear on the next run. |
+| `ingestion.run.run_ingestion(...)` / `ingest(...)` | The CLI's steps as functions, used by the integration test. |
+
 ### 5.2 Retrieval
 
 ```python
@@ -415,6 +427,18 @@ def validate_citations(text: str, citations: list[Citation]) -> bool: ...
 ```
 
 `answer()` is the only entry point used by the bot, CLI, and evaluator. Formatting happens outside it.
+
+**Additions made during implementation (all optional, backward compatible):**
+
+| Name | Why |
+|---|---|
+| `Citation.authors`, `.year`, `.program`, `.supervisor_id`, `.repo_url` (defaults empty) | `project_card(citation, ...)` (T5.3) shows authors, year, program, supervisor, and a Repo button from the citation alone. Filled from SQLite; never contact data. |
+| `AnswerResult.mode` also `"ambiguous"` / `"not_found"` | T4.1: name lookups return a structured status instead of a portfolio. |
+| `AnswerResult.resolution: SeniorResolution \| None` | Holds the candidates for `ambiguous` / `not_found` (T3.5, T5.5). |
+| `AnswerResult.facets`, `AnswerResult.facet_counts` | `FACET_BROWSE` returns the active filters and the SQLite `GROUP BY` counts (T4.1, T5.6). |
+| `AnswerResult.query` | The raw query, needed by the LLM prompt and the query log. |
+| `answer(..., *, collection=None)` | Tests use a temporary Qdrant collection; the default is `KB_COLLECTION`. |
+| `route == "MULTI_INTENT"`, `answer` holds the empty-intersection note | T3.7: `None of <name>'s indexed projects matched '<topic>'.` |
 
 ### 5.4 Telegram
 

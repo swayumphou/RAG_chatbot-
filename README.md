@@ -64,6 +64,20 @@ Searchable archive of past RUPP senior projects: topic search, senior lookup, po
 - `python-telegram-bot` 22.8
 - $0 recurring, self-hosted
 
+## Command-line demo (no Telegram)
+
+`cli.py` calls the same `answer()` function as the bot, so it is the offline demo path:
+
+```powershell
+python cli.py --query "khmer ocr"                              # extractive answer (default)
+python cli.py --query "who built a Khmer OCR system" --llm     # let Gemma 4 write the answer
+```
+
+It prints the matching projects with `[Project: <title>, p.<n>]` citations. `--db`,
+`--qdrant-url`, and `--qdrant-path` point it at the same SQLite file and Qdrant index that
+`python -m ingestion.run` wrote. A missing index, model, or Qdrant server prints a one-line
+error instead of a traceback.
+
 ## Notes
 
 - Empty files are intentional placeholders. Each one is owned by a task card in `implementation/tasks/`.
