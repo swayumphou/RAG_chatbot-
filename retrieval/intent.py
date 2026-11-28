@@ -108,7 +108,7 @@ def segment_for_lexical(text: str) -> str:
             RuntimeWarning,
             stacklevel=2,
         )
-        return _khmer_trigrams(text)
+        return khmer_trigrams(text)
 
     pieces = []
     for run in re.split(r"([ក-៿]+)", text):
@@ -119,16 +119,21 @@ def segment_for_lexical(text: str) -> str:
     return " ".join(" ".join(pieces).split())
 
 
-def _khmer_trigrams(text: str) -> str:
-    """Fallback when khmer-nltk is missing: cut Khmer runs into 3-letter pieces."""
+def khmer_trigrams(text: str) -> str:
+    """Fallback when khmer-nltk is missing: cut each Khmer run into 3-letter pieces.
 
-    def trigrams(match: re.Match) -> str:
-        run = match.group(0)
-        if len(run) <= 3:
-            return f" {run} "
-        return " " + " ".join(run[i : i + 3] for i in range(len(run) - 2)) + " "
-
-    return " ".join(re.sub(r"[ក-៿]+", trigrams, text).split())
+    "សុខដារា" -> "សុខ ុខដ ខដា ដារ ារា". Other text is kept as it is.
+    """
+    words = []
+    for run in re.split(r"([ក-៿]+)", text):
+        if not contains_khmer(run):
+            words.extend(run.split())
+        elif len(run) <= 3:
+            words.append(run)
+        else:
+            for start in range(len(run) - 2):
+                words.append(run[start : start + 3])
+    return " ".join(words)
 
 
 # ---------------------------------------------------------------- entities

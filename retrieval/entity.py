@@ -82,6 +82,7 @@ def fuzzy_scores(name, db) -> list[tuple[str, float]]:
     for senior_id, alias in db.alias_directory():
         score = fuzz.token_set_ratio(name, alias)
         best[senior_id] = max(best.get(senior_id, 0.0), score)
+    # Highest score first; equal scores in senior_id order, so the result is always the same.
     return sorted(best.items(), key=lambda item: (-item[1], item[0]))
 
 
