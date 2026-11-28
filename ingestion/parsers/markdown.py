@@ -1,66 +1,65 @@
-"""Markdown / plain-text parser: ATX headings start sections (T2.5).
+"""Read a Markdown (.md) or text (.txt) file: each "#" heading starts a section (T2.5).
 
-A deterministic heading parser is used (allowed by T2.5) because it keeps the
-heading line in the section text and never treats ``#`` inside a fenced code
-block as a heading. ``.txt`` files go through the same path and usually yield
-a single section.
-
-* ``#`` .. ``######`` headings start a new section; the heading line is kept.
-* ``page_number=0``; anchor ``"section N"`` (1-based, emitted sections only).
-* A heading with no body directly before another heading is stacked onto the
-  next section; empty sections are never emitted.
-* Short paragraphs (for example a 20-character line) survive parsing; the
-  chunker drops anything under ``MIN_CHUNK_CHARS`` later.
+- "#" to "######" headings start a new section; the heading line is kept.
+- A "#" inside a ``` code block is not a heading.
+- Sections get number=0 and the anchor "section 1", "section 2", ...
+- A heading with nothing under it is joined to the next heading.
+- Short paragraphs are kept here; the chunker drops chunks under 80 characters.
 """
 
 from __future__ import annotations
 
 import re
-from collections.abc import Mapping
 from pathlib import Path
-from typing import Any
 
-from ingestion.parsers.base import Page, ParsedDocument, build_parsed_document
+from ingestion.parsers.base import Page, build_parsed_document
 
-_HEADING_RE = re.compile(r"^\s{0,3}(#{1,6})\s+(.+?)\s*#*\s*$")
-_FENCE_RE = re.compile(r"^\s{0,3}(```|~~~)")
+HEADING = re.compile(r"^\s{0,3}(#{1,6})\s+(.+?)\s*#*\s*$")  # "## Methods"
+CODE_FENCE = re.compile(r"^\s{0,3}(```|~~~)")
 
 
-def split_sections(text: str) -> list[Page]:
-    pages: list[Page] = []
-    headings: list[str] = []
-    heading_lines: list[str] = []
-    body: list[str] = []
-    in_fence = False
+def split_sections(text) -> list:
+    pages = []
+    headings = []  # heading texts of the section being collected
+    heading_lines = []  # the same headings as written, e.g. "## Methods"
+    body = []
+    in_code = False
 
-    def flush() -> None:
-        nonlocal headings, heading_lines, body
+    def finish_section():
         content = "\n".join(body).strip()
         if content:
             number = len(pages) + 1
-            section_text = "\n".join([*heading_lines, content])
-            anchor = f"section {number}"
-            pages.append(Page(number=0, text=section_text, headings=tuple(headings), anchor=anchor))
-        headings, heading_lines, body = [], [], []
+            section_text = "\n".join(heading_lines + [content])
+            pages.append(
+                Page(
+                    number=0,
+                    text=section_text,
+                    headings=tuple(headings),
+                    anchor=f"section {number}",
+                )
+            )
+        headings.clear()
+        heading_lines.clear()
+        body.clear()
 
     for line in text.splitlines():
-        if _FENCE_RE.match(line):
-            in_fence = not in_fence
+        if CODE_FENCE.match(line):
+            in_code = not in_code
             body.append(line)
             continue
-        match = None if in_fence else _HEADING_RE.match(line)
+        match = HEADING.match(line) if not in_code else None
         if match:
-            if "\n".join(body).strip():
-                flush()
+            if "\n".join(body).strip():  # the previous section has text: finish it
+                finish_section()
             headings.append(match.group(2).strip())
             heading_lines.append(line.strip())
-            continue
-        body.append(line.rstrip())
-    flush()
+        else:
+            body.append(line.rstrip())
+    finish_section()
     return pages
 
 
-def parse_markdown(path: Path, project: Mapping[str, Any]) -> ParsedDocument:
+def parse_markdown(path, project):
     path = Path(path)
     try:
         text = path.read_text(encoding="utf-8-sig")

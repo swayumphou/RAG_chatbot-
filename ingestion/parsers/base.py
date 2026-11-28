@@ -1,137 +1,121 @@
-"""Parser contract shared by every format (T2.1, INTERFACES §5.1).
+"""What every parser returns: a ParsedDocument made of Pages (T2.1, INTERFACES §5.1).
 
-Page anchors are non-negotiable: without them there are no citations, and
-without citations the answer layer cannot be audited.
-
-Invariants:
-
-* ``doc_id = f"{project_id}__{filename}"``.
-* ``sha256`` is the SHA-256 of the file bytes.
-* ``parse_status`` is ``ok``, ``ocr``, or ``failed``.
-* A document with zero usable pages is always ``failed`` — never ``ok`` with
-  no pages. Silent success on an empty parse is the worst failure mode in a
-  retrieval pipeline: the index looks healthy while answering nothing.
-* Paged formats (PDF, PPTX) use 1-based page/slide numbers. Formats without
-  reliable pages (DOCX, Markdown) use ``number=0`` and carry the section
-  anchor ``"section N"`` in :attr:`Page.anchor`.
+Rules every parser follows:
+- doc_id is "<project_id>__<file name>", for example "dse2024-001__report.pdf".
+- sha256 is the hash of the file's bytes (so we notice when a file changes).
+- parse_status is "ok", "ocr" (text came from OCR), or "failed".
+- A document with no usable page is ALWAYS "failed", never "ok". An empty
+  "ok" would make the index look healthy while it can answer nothing.
+- PDF pages and PPTX slides are numbered from 1. DOCX and Markdown have no
+  real pages: they use number=0 and the anchor "section N".
 """
 
 from __future__ import annotations
 
 import hashlib
-from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, replace
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Literal
-
-if TYPE_CHECKING:  # pragma: no cover
-    from langchain_core.documents import Document
-
-ParseStatus = Literal["ok", "ocr", "failed"]
 
 DOC_TYPES = ("report", "slides", "poster", "notes")
 
 
 @dataclass(frozen=True)
 class Page:
-    """One page (PDF), slide (PPTX), or section (DOCX/Markdown)."""
+    """One PDF page, one slide, or one DOCX/Markdown section."""
 
-    number: int
+    number: int  # page or slide number; 0 for DOCX/Markdown sections
     text: str
-    headings: tuple[str, ...] = ()
-    anchor: str = ""
+    headings: tuple = ()  # headings found on this page, in order
+    anchor: str = ""  # "p.4", "slide 2", or "section 3"
 
 
 @dataclass(frozen=True)
 class ParsedDocument:
     doc_id: str
     project_id: str
-    doc_type: str
+    doc_type: str  # report, slides, poster, or notes
     file_path: str
     sha256: str
-    pages: tuple[Page, ...]
-    parse_status: ParseStatus
-    parser: str
-    page_count: int
+    pages: tuple  # only pages that have text
+    parse_status: str  # ok, ocr, or failed
+    parser: str  # which library read it, e.g. "pymupdf"
+    page_count: int  # pages in the original file (also the empty ones)
 
-    def to_langchain_documents(self, project: Mapping[str, Any]) -> list[Document]:
-        """One LangChain ``Document`` per page with the FR-02 metadata."""
-
+    def to_langchain_documents(self, project):
+        """One LangChain Document per page, with the page's metadata."""
         from langchain_core.documents import Document
 
-        project_id = str(project.get("project_id") or self.project_id)
-        return [
-            Document(
-                page_content=page.text,
-                metadata={
-                    "doc_id": self.doc_id,
-                    "project_id": project_id,
-                    "doc_type": self.doc_type,
-                    "page_number": page.number,
-                    "anchor": page.anchor or f"p.{page.number}",
-                    "parse_status": self.parse_status,
-                    "parser": self.parser,
-                    "sha256": self.sha256,
-                },
-            )
-            for page in self.pages
-            if page.text.strip()
-        ]
+        documents = []
+        for page in self.pages:
+            if not page.text.strip():
+                continue
+            metadata = {
+                "doc_id": self.doc_id,
+                "project_id": project.get("project_id") or self.project_id,
+                "doc_type": self.doc_type,
+                "page_number": page.number,
+                "anchor": page.anchor or f"p.{page.number}",
+                "parse_status": self.parse_status,
+                "parser": self.parser,
+                "sha256": self.sha256,
+            }
+            documents.append(Document(page_content=page.text, metadata=metadata))
+        return documents
 
 
-def sha256_file(path: Path) -> str:
+def sha256_file(path) -> str:
+    """SHA-256 of a file, read 1 MB at a time."""
     digest = hashlib.sha256()
-    with Path(path).open("rb") as handle:
-        for block in iter(lambda: handle.read(1 << 20), b""):
+    with open(path, "rb") as handle:
+        while True:
+            block = handle.read(1024 * 1024)
+            if not block:
+                break
             digest.update(block)
     return digest.hexdigest()
 
 
-def make_doc_id(project_id: str, path: Path) -> str:
+def make_doc_id(project_id, path) -> str:
     return f"{project_id}__{Path(path).name}"
 
 
-def infer_doc_type(path: Path, project: Mapping[str, Any]) -> str:
-    """Document type: explicit project value, then filename keyword, then extension.
+def infer_doc_type(path, project) -> str:
+    """The document type: from the project row, else the file name, else the extension.
 
-    ``report.md`` is a report; ``notes.md`` is notes; any ``.pptx`` is slides.
+    "report.md" is a report, "notes.md" is notes, and every .pptx is slides.
     """
-
     explicit = str(project.get("doc_type") or "").strip().lower()
     if explicit in DOC_TYPES:
         return explicit
-    path = Path(path)
-    stem = path.stem.lower()
+
+    name = Path(path).stem.lower()
     for keyword in ("slides", "poster", "notes", "report"):
-        if keyword in stem:
+        if keyword in name:
             return keyword
-    suffix = path.suffix.lower()
-    if suffix == ".pptx":
+
+    extension = Path(path).suffix.lower()
+    if extension == ".pptx":
         return "slides"
-    if suffix in (".md", ".txt"):
+    if extension in (".md", ".txt"):
         return "notes"
     return "report"
 
 
 def build_parsed_document(
-    path: Path,
-    project: Mapping[str, Any],
-    pages: Iterable[Page],
-    *,
-    parser: str,
-    page_count: int,
-    used_ocr: bool = False,
-    doc_type: str | None = None,
+    path, project, pages, parser, page_count, used_ocr=False, doc_type=None
 ) -> ParsedDocument:
-    """Assemble a :class:`ParsedDocument`, enforcing the empty-document rule."""
-
+    """Put a ParsedDocument together. No usable page -> "failed"."""
     path = Path(path)
     project_id = str(project["project_id"])
-    usable = tuple(p for p in pages if p.text and p.text.strip())
+    usable = tuple(page for page in pages if page.text and page.text.strip())
+
     if not usable:
-        status: ParseStatus = "failed"
+        status = "failed"
+    elif used_ocr:
+        status = "ocr"
     else:
-        status = "ocr" if used_ocr else "ok"
+        status = "ok"
+
     return ParsedDocument(
         doc_id=make_doc_id(project_id, path),
         project_id=project_id,
@@ -146,9 +130,8 @@ def build_parsed_document(
 
 
 def enforce_contract(parsed: ParsedDocument) -> ParsedDocument:
-    """Downgrade any ``ok``/``ocr`` document without usable pages to ``failed``."""
-
-    usable = tuple(p for p in parsed.pages if p.text and p.text.strip())
+    """Safety net for any parser: drop empty pages; no page left -> "failed"."""
+    usable = tuple(page for page in parsed.pages if page.text and page.text.strip())
     if not usable:
         return replace(parsed, pages=(), parse_status="failed")
     if len(usable) != len(parsed.pages):

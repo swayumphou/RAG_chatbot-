@@ -310,14 +310,36 @@ def validate_manifest(projects_csv, seniors_csv, corpus_dir, previous=None) -> V
 
 # ---------------------------------------------------------------- diff
 
+# The fields compared to decide whether a row was "updated" since the last run.
 PROJECT_COMPARE = [
-    "title_en", "title_khmer", "year", "term", "program", "domain", "tech_stack",
-    "keywords", "supervisor_id", "senior_ids", "abstract", "repo_url", "demo_url", "permission",
-]  # fmt: skip
+    "title_en",
+    "title_khmer",
+    "year",
+    "term",
+    "program",
+    "domain",
+    "tech_stack",
+    "keywords",
+    "supervisor_id",
+    "senior_ids",
+    "abstract",
+    "repo_url",
+    "demo_url",
+    "permission",
+]
 SENIOR_COMPARE = [
-    "full_name_latin", "full_name_khmer", "program", "cohort_year", "supervisor_id",
-    "contact_email", "github", "linkedin", "consent_public_contact", "consent_relay", "status",
-]  # fmt: skip
+    "full_name_latin",
+    "full_name_khmer",
+    "program",
+    "cohort_year",
+    "supervisor_id",
+    "contact_email",
+    "github",
+    "linkedin",
+    "consent_public_contact",
+    "consent_relay",
+    "status",
+]
 
 
 LIST_FIELDS = {"tech_stack", "keywords", "senior_ids"}

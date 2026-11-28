@@ -1,133 +1,133 @@
-"""PDF parser: PyMuPDF text blocks, font-size headings, OCR fallback (T2.2).
+"""Read a PDF page by page with PyMuPDF; scanned pages go through OCR (T2.2).
 
-* Text comes from ``page.get_text("blocks")`` (text blocks only), joined with
-  blank lines so the chunker can split on paragraph boundaries.
-* Short blocks inside the top/bottom margin band are treated as running
-  headers/footers (page numbers, report title) and dropped.
-* Headings are lines whose font size is noticeably larger (x1.15) than the
-  page's dominant body size.
-* A page with fewer than 20 non-whitespace characters is rendered at 300 dpi
-  and OCR'd with Tesseract ``eng+khm``; the document becomes ``ocr``.
-* A page with no text after extraction/OCR is skipped, but ``page_count``
-  remains the original PDF page count. No usable page -> ``failed``.
+For each page:
+1. Take the text blocks. Short blocks in the top or bottom 6% of the page are
+   running headers, footers, or page numbers, so they are dropped.
+2. Find the headings: lines in a font at least 15% bigger than the normal text.
+3. A page with fewer than 20 letters is probably a scan: run OCR on it.
+4. A page that still has no text is skipped. page_count stays the real
+   number of pages in the file.
 """
 
 from __future__ import annotations
 
 import logging
-from collections import Counter
-from collections.abc import Mapping
 from pathlib import Path
-from typing import Any
 
-from ingestion.parsers.base import Page, ParsedDocument, build_parsed_document
+from ingestion.parsers.base import Page, build_parsed_document
 from ingestion.parsers.ocr import ocr_page
 
 logger = logging.getLogger(__name__)
 
-MIN_PAGE_CHARS = 20
-HEADING_SIZE_RATIO = 1.15
+MIN_PAGE_CHARS = 20  # fewer letters than this -> try OCR
+HEADING_SIZE_RATIO = 1.15  # a heading's font is this much bigger than body text
 MAX_HEADING_CHARS = 150
-MARGIN_BAND = 0.06  # fraction of page height treated as header/footer band
-MAX_MARGIN_TEXT = 80
+MARGIN_BAND = 0.06  # top and bottom 6% of the page: header/footer area
+MAX_MARGIN_TEXT = 80  # longer text in the margin is kept (it is real content)
 
 
-def _import_pymupdf():
+def load_pymupdf():
     try:
         import pymupdf
-    except ImportError:  # older wheels only expose the legacy name
+    except ImportError:  # older versions only have the old name
         import fitz as pymupdf
     return pymupdf
 
 
-def _in_margin(y0: float, y1: float, height: float) -> bool:
-    if height <= 0:
+def in_margin(top, bottom, page_height) -> bool:
+    """True when a line sits in the header or footer band of the page."""
+    if page_height <= 0:
         return False
-    return y1 <= height * MARGIN_BAND or y0 >= height * (1.0 - MARGIN_BAND)
+    return bottom <= page_height * MARGIN_BAND or top >= page_height * (1 - MARGIN_BAND)
 
 
-def _non_ws_len(text: str) -> int:
-    return sum(1 for ch in text if not ch.isspace())
+def count_letters(text) -> int:
+    """Number of characters that are not spaces or line breaks."""
+    return len("".join(text.split()))
 
 
-def _page_text(page: Any) -> str:
-    height = float(page.rect.height)
-    parts: list[str] = []
+def page_text(page) -> str:
+    """The page's text blocks, without headers and footers, separated by blank lines."""
+    height = page.rect.height
+    parts = []
     for block in page.get_text("blocks", sort=True):
-        x0, y0, x1, y1, text, _block_no, block_type = block[:7]
+        top, bottom, text, block_type = block[1], block[3], block[4], block[6]
         if block_type != 0:
-            continue  # image block
+            continue  # an image, not text
         text = (text or "").strip()
         if not text:
             continue
-        if _in_margin(y0, y1, height) and len(text) <= MAX_MARGIN_TEXT:
-            continue  # running header / footer / page number
+        if in_margin(top, bottom, height) and len(text) <= MAX_MARGIN_TEXT:
+            continue  # running header, footer, or page number
         parts.append(text)
     return "\n\n".join(parts)
 
 
-def detect_headings(page: Any) -> tuple[str, ...]:
-    """Lines set in a font noticeably larger than the dominant body size."""
+def detect_headings(page) -> tuple:
+    """Lines written in a font clearly bigger than the page's normal text."""
+    height = page.rect.height
+    letters_per_size = {}  # font size -> how many letters use it
+    lines = []  # (text, size, top, bottom)
 
-    height = float(page.rect.height)
-    data = page.get_text("dict", sort=True)
-    weight: Counter[float] = Counter()
-    lines: list[tuple[str, float, float, float]] = []
-    for block in data.get("blocks", []):
+    for block in page.get_text("dict", sort=True).get("blocks", []):
         for line in block.get("lines", []):
-            spans = [s for s in line.get("spans", []) if (s.get("text") or "").strip()]
+            spans = [span for span in line.get("spans", []) if span.get("text", "").strip()]
             if not spans:
                 continue
-            # Join spans exactly as PyMuPDF does in the block text, so the
-            # chunker can find this heading in the page text with str.find().
-            text = "".join(s["text"] for s in spans).strip()
-            size = max(round(float(s.get("size", 0.0)), 1) for s in spans)
+            # Join the spans the same way PyMuPDF does, so the heading can be
+            # found again in the page text.
+            text = "".join(span["text"] for span in spans).strip()
+            size = max(round(span.get("size", 0.0), 1) for span in spans)
             for span in spans:
-                weight[round(float(span.get("size", 0.0)), 1)] += len(span["text"].strip())
-            bbox = line.get("bbox", (0.0, 0.0, 0.0, 0.0))
-            lines.append((text, size, float(bbox[1]), float(bbox[3])))
-    if not weight:
+                span_size = round(span.get("size", 0.0), 1)
+                letters_per_size[span_size] = letters_per_size.get(span_size, 0) + len(
+                    span["text"].strip()
+                )
+            box = line.get("bbox", (0, 0, 0, 0))
+            lines.append((text, size, box[1], box[3]))
+
+    if not letters_per_size:
         return ()
-    body_size = weight.most_common(1)[0][0]
-    headings = [
-        text
-        for text, size, y0, y1 in lines
-        if size >= body_size * HEADING_SIZE_RATIO
-        and len(text) <= MAX_HEADING_CHARS
-        and not _in_margin(y0, y1, height)
-    ]
-    return tuple(dict.fromkeys(headings))
+    body_size = max(letters_per_size, key=letters_per_size.get)  # the most-used size
+
+    headings = []
+    for text, size, top, bottom in lines:
+        big_enough = size >= body_size * HEADING_SIZE_RATIO
+        short_enough = len(text) <= MAX_HEADING_CHARS
+        in_body = not in_margin(top, bottom, height)
+        if big_enough and short_enough and in_body and text not in headings:
+            headings.append(text)
+    return tuple(headings)
 
 
-def parse_pdf(path: Path, project: Mapping[str, Any]) -> ParsedDocument:
+def parse_pdf(path, project):
     path = Path(path)
-    pymupdf = _import_pymupdf()
+    pymupdf = load_pymupdf()
     try:
         document = pymupdf.open(str(path))
-    except Exception as exc:  # noqa: BLE001 - corrupt/encrypted file -> failed
-        logger.warning("Could not open PDF %s: %s", path.name, exc)
+    except Exception as error:  # a broken or encrypted file is "failed", not a crash
+        logger.warning("Could not open PDF %s: %s", path.name, error)
         return build_parsed_document(path, project, [], parser="pymupdf", page_count=0)
 
-    pages: list[Page] = []
+    pages = []
     used_ocr = False
     with document:
         page_count = document.page_count
         for number, page in enumerate(document, start=1):
-            text = _page_text(page)
+            text = page_text(page)
             headings = detect_headings(page) if text else ()
-            if _non_ws_len(text) < MIN_PAGE_CHARS:
+
+            if count_letters(text) < MIN_PAGE_CHARS:  # probably a scanned page
                 ocr_text = ocr_page(page).strip()
                 if ocr_text:
                     text, headings, used_ocr = ocr_text, (), True
-            if not text.strip():
-                continue
-            pages.append(Page(number=number, text=text, headings=headings, anchor=f"p.{number}"))
 
+            if text.strip():
+                pages.append(
+                    Page(number=number, text=text, headings=headings, anchor=f"p.{number}")
+                )
+
+    parser = "pymupdf+ocr" if used_ocr else "pymupdf"
     return build_parsed_document(
-        path,
-        project,
-        pages,
-        parser="pymupdf+ocr" if used_ocr else "pymupdf",
-        page_count=page_count,
-        used_ocr=used_ocr,
+        path, project, pages, parser=parser, page_count=page_count, used_ocr=used_ocr
     )

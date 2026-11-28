@@ -1,51 +1,50 @@
-"""PPTX parser: one page per slide, with tables and speaker notes (T2.4).
+"""Read a PowerPoint file (.pptx): one page per slide (T2.4).
 
-* ``number`` is the 1-based slide number; anchor ``"slide N"``.
-* Text frames (including inside group shapes), table cells, and speaker notes
-  are included. The slide title (or the first non-empty line) is the heading.
-* ``doc_type="slides"``; the chunker uses the 300/50 splitter and marks the
-  chunks non-primary.
-* A slide without text is skipped; if every slide is empty -> ``failed``.
+- Page number = slide number (from 1); anchor "slide N".
+- Text boxes (also inside grouped shapes), table rows, and speaker notes are
+  all included. The slide title, or else its first line, is the heading.
+- The document type is "slides": the chunker uses smaller chunks for it.
+- A slide without text is skipped; if every slide is empty -> "failed".
 """
 
 from __future__ import annotations
 
-from collections.abc import Iterator, Mapping
 from pathlib import Path
-from typing import Any
 
-from ingestion.parsers.base import Page, ParsedDocument, build_parsed_document
+from ingestion.parsers.base import Page, build_parsed_document
 
 
-def _shape_texts(shapes: Any) -> Iterator[str]:
+def shape_texts(shapes) -> list:
+    """The text of every shape: text boxes, table rows, and shapes inside groups."""
     from pptx.shapes.group import GroupShape
 
+    texts = []
     for shape in shapes:
         if isinstance(shape, GroupShape):
-            yield from _shape_texts(shape.shapes)
-            continue
-        if getattr(shape, "has_table", False) and shape.has_table:
+            texts.extend(shape_texts(shape.shapes))
+        elif getattr(shape, "has_table", False):
             for row in shape.table.rows:
                 cells = [" ".join(cell.text.split()) for cell in row.cells]
                 if any(cells):
-                    yield " | ".join(cells)
-            continue
-        if getattr(shape, "has_text_frame", False) and shape.has_text_frame:
+                    texts.append(" | ".join(cells))
+        elif getattr(shape, "has_text_frame", False):
             text = shape.text_frame.text.strip()
             if text:
-                yield text
+                texts.append(text)
+    return texts
 
 
-def _slide_page(slide: Any, number: int) -> Page | None:
+def slide_page(slide, number):
+    """One slide as a Page, or None when the slide has no text."""
     title_shape = slide.shapes.title
     title = title_shape.text_frame.text.strip() if title_shape is not None else ""
-    # python-pptx returns a new proxy object on every access, so the title is
-    # excluded by shape_id rather than by identity.
+    # python-pptx makes a new object every time, so the title shape is skipped
+    # by its id, not by comparing objects.
     title_id = title_shape.shape_id if title_shape is not None else None
-    parts: list[str] = [title] if title else []
-    for text in _shape_texts(s for s in slide.shapes if s.shape_id != title_id):
-        parts.append(text)
+    other_shapes = [shape for shape in slide.shapes if shape.shape_id != title_id]
 
+    parts = [title] if title else []
+    parts += shape_texts(other_shapes)
     if slide.has_notes_slide:
         notes = slide.notes_slide.notes_text_frame
         notes_text = notes.text.strip() if notes is not None else ""
@@ -55,25 +54,25 @@ def _slide_page(slide: Any, number: int) -> Page | None:
     text = "\n".join(parts).strip()
     if not text:
         return None
-    heading = title or next(line.strip() for line in text.splitlines() if line.strip())
+    heading = title or text.splitlines()[0].strip()
     return Page(number=number, text=text, headings=(heading,), anchor=f"slide {number}")
 
 
-def parse_pptx(path: Path, project: Mapping[str, Any]) -> ParsedDocument:
+def parse_pptx(path, project):
     from pptx import Presentation
 
     path = Path(path)
     try:
         deck = Presentation(str(path))
-    except Exception:  # noqa: BLE001 - corrupt file -> failed
+    except Exception:  # a broken file is "failed", not a crash
         return build_parsed_document(
             path, project, [], parser="python-pptx", page_count=0, doc_type="slides"
         )
 
-    pages: list[Page] = []
     slides = list(deck.slides)
+    pages = []
     for number, slide in enumerate(slides, start=1):
-        page = _slide_page(slide, number)
+        page = slide_page(slide, number)
         if page is not None:
             pages.append(page)
 

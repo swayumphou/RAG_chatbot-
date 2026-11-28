@@ -17,9 +17,17 @@ import sys
 from ingestion.indexer import collection_name, connect_qdrant, count_points, scroll_all
 from store.db import DB, DEFAULT_DB_PATH
 
+# Every point in Qdrant must carry these payload keys.
 REQUIRED_KEYS = (
-    "project_id", "senior_ids", "doc_id", "doc_type", "page_number", "year", "program", "text",
-)  # fmt: skip
+    "project_id",
+    "senior_ids",
+    "doc_id",
+    "doc_type",
+    "page_number",
+    "year",
+    "program",
+    "text",
+)
 
 
 class IntegrityError(Exception):

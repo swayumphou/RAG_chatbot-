@@ -22,10 +22,17 @@ from ingestion.embedder import DENSE_DIM
 logger = logging.getLogger(__name__)
 
 NAMESPACE = uuid.UUID("6f2a1c3e-0000-4000-8000-000000000000")
+# Payload fields that get a keyword index, so Qdrant can filter on them quickly.
 KEYWORD_FIELDS = [
-    "project_id", "doc_id", "doc_type", "program", "supervisor_id", "senior_ids",
-    "domain", "tech_stack",
-]  # fmt: skip
+    "project_id",
+    "doc_id",
+    "doc_type",
+    "program",
+    "supervisor_id",
+    "senior_ids",
+    "domain",
+    "tech_stack",
+]
 UPSERT_BATCH = 64
 
 
